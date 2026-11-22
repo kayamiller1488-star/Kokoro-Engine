@@ -47,7 +47,39 @@ async fn auto_start_pet_on_launch<F, Fut>(
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+
+/// One instance only.
+///
+/// Two instances share the same app-data directory and the same ports, so the second
+/// one panics on the bot HTTP port, opens a *second* pet window, and serves a frontend
+/// that talks to its own backend — which is how a stale build keeps showing an error
+/// the current build already fixed. A named mutex is the cheapest reliable guard: it
+/// dies with the process, so a crash never blocks the next launch.
+#[cfg(target_os = "windows")]
+fn acquire_single_instance() -> bool {
+    use windows_sys::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
+    use windows_sys::Win32::System::Threading::CreateMutexW;
+
+    let name: Vec<u16> = "Local\\com.chyin.kokoro.single-instance\0".encode_utf16().collect();
+    // SAFETY: plain Win32 call with a static, NUL-terminated wide string.
+    unsafe {
+        let handle = CreateMutexW(std::ptr::null(), 0, name.as_ptr());
+        if handle.is_null() {
+            // Cannot create the mutex: do not block the user from starting the app.
+            return true;
+        }
+        GetLastError() != ERROR_ALREADY_EXISTS
+    }
+}
+
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    if !acquire_single_instance() {
+        tracing::warn!(target: "startup", "another Kokoro Engine instance is already running; exiting");
+        eprintln!("[startup] another instance is already running; exiting");
+        std::process::exit(0);
+    }
+
     init_logging();
 
     // Pin the ONNX Runtime dylib to the copy we ship, so the ort crate
