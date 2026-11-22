@@ -61,7 +61,18 @@
     .replace(/^\s*[-•]\s+/gm, " ")             // bullets
     .replace(/[ \t]{2,}/g, " ")
     .trim();
-  const forSpeech = (text) => stripMarkup(stripCues(text));
+  // Ellipses and stray symbols must be resolved here, not left to the mouth: a
+  // punctuation-only fragment is spoken as a WORD — measured "." -> "Yeah.",
+  // "..." -> "Yeah.", "~" -> "Tilda.", "*" -> "Astrais.", ".." -> "Tla." So
+  // collapse ellipses to a comma pause and drop anything with no letters left.
+  const forSpeech = (text) => {
+    const clean = stripMarkup(stripCues(String(text || "")
+      .replace(/[.\u2026]{2,}/g, ", ")     // "...", "…", ".." -> a pause
+      .replace(/\u2026/g, ", ")
+      .replace(/[~–—]+/g, " ")              // tildes and dashes are not words
+      .replace(/\s+([,.!?;:])/g, "$1")));
+    return /[\p{L}\p{N}]/u.test(clean) ? clean : "";
+  };
   const ASR_RATE = 16000;
   const BLOCK = 4096;
   const ABS_MIN_RMS = 0.0015;
@@ -462,6 +473,8 @@
   async function enqueue(text) {
     const sentence = text.trim();
     if (!sentence) return;
+    // Nothing but punctuation or markup: there is no word to say.
+    if (!/[\p{L}\p{N}]/u.test(forSpeech(sentence))) { say(`skipped a silent chunk: ${JSON.stringify(sentence)}`); return; }
     queue.push(sentence);
     if (!playing) void drain();
   }
