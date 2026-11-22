@@ -85,7 +85,47 @@ installed, ~20 MB total).
    the ear with and without repair, and require the repair to win on his real cases without
    breaking the control.
 
+## Prior art: has someone already solved this? (checked the web, 2026-11-22)
+
+Yes for **Mandarin↔English**, no for **Japanese↔English**, and nobody solves the *quote* case.
+
+**MediaTek Breeze-ASR-25 — the closest existing solution.** A Whisper-large-v2 fine-tune described as
+adopting "an unified mix embedding for decoding, optimized for Mandarin-English code-switching
+scenarios, **including intra-sentential switching**" — precisely the failure we hit. Open weights, a
+paper (arXiv 2506.11130, model called "Twister"), benchmarks against Whisper-large-v2/v3 auto-detect,
+and **GGUF conversions exist** (`tryambientai/Breeze-ASR-25-gguf`, `epapanita/...`, `lipik/...`), so it
+can be dropped into whisper.cpp locally. It is optimised for *Taiwanese* Mandarin, which is a caveat
+for our use but the same language pair.
+
+**Qwen3-ASR (0.6B / 1.7B)** — 52 languages including zh/ja/en, language identification, streaming,
+very fast. But the honest published state: Amical's comparison says on **Japanese mixed with English
+"we found no published test at all"**. No claim to rely on.
+
+**Per-token LID services** (Soniox, Gladia) — the vendor-correct answer: they decide language per
+token rather than per utterance, which is exactly what our failure needs. Paid, cloud, and his voice
+leaves the machine.
+
+**Japanese↔English code-switching, open source: research only.** MERL's end-to-end language-tracking
+recogniser (2018), the SwitchLingua multilingual code-switch dataset (NeurIPS 2025), and an ANLP 2024
+paper on heterogeneous English/Japanese transcription. No drop-in weights, no local model.
+
+**Community consensus** (Reddit r/LocalLLaMA threads, Amical's write-up): Whisper "drops half of any
+sentence" when languages switch; the practical advice is set the language explicitly, use
+`faster-whisper`'s per-segment re-detection for long audio, don't translate, and otherwise "use a
+model built for it". Nobody reports a trick that makes Whisper handle a single quoted foreign word.
+
+### What that changes in our plan
+
+- The **quote case stays ours to solve.** Even a perfect code-switch model transcribes the sound he
+  actually made — if he says "nina" for 你呢, any ASR returns "nina". Resolving it back to the phrase
+  is a separate step, and `phonetic_repair.py` is that step.
+- **Breeze-ASR-25 is a real upgrade path for Sasha** (Mandarin), not for Kana (Japanese). Worth a
+  measured trial later: same test set, WER against SenseVoice, plus VRAM and latency.
+- For Japanese there is nothing off the shelf, which is another reason the deterministic repair
+  (which needs no model at all) is the right first move.
+
 ## Options considered and not chosen
+
 
 - **Switch the ear to a code-switching ASR service** (per-token LID, e.g. Soniox). Architecturally
   the correct answer; costs per minute, adds network latency, sends his voice to a third party.
