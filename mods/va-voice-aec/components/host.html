@@ -48,6 +48,20 @@
   // She writes cues inline as [smirk] because the prompt offers them. Never speak
   // the brackets: strip them before synthesis.
   const stripCues = (text) => String(text || "").replace(/\[[^\]\n]{1,40}\]/g, " ").replace(/\s{2,}/g, " ").trim();
+  // Markdown and roleplay markup must never reach the mouth: the phonemizer reads
+  // "*" as the word "asterisk" — measured, "*smiles softly*" is spoken as
+  // "Assteric smiles, softly asterisk." Display keeps the markup; speech does not.
+  const stripMarkup = (text) => String(text || "")
+    .replace(/```[\s\S]*?```/g, " ")          // fenced code
+    .replace(/`([^`]*)`/g, "$1")                // inline code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")   // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")  // links -> label
+    .replace(/[*_~]{1,3}/g, " ")                // **bold**, *action*, _italics_, ~~strike~~
+    .replace(/^\s*[>#]+\s*/gm, " ")            // quotes and headings
+    .replace(/^\s*[-•]\s+/gm, " ")             // bullets
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+  const forSpeech = (text) => stripMarkup(stripCues(text));
   const ASR_RATE = 16000;
   const BLOCK = 4096;
   const ABS_MIN_RMS = 0.0015;
@@ -61,6 +75,7 @@
 
   const state = {
     characterId: "", voice: VOICE, micEnabled: true, earLanguage: "", lastEarsUrl: "",
+    forSpeech: (t) => forSpeech(t),
     ctx: null, mic: null, source: null, proc: null, sink: null,
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
@@ -462,7 +477,7 @@
         const res = await fetch(MOUTH, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: state.voice, input: stripCues(sentence), voice: state.voice }),
+          body: JSON.stringify({ model: state.voice, input: forSpeech(sentence), voice: state.voice }),
         });
         if (!res.ok) throw new Error("mouth " + res.status);
         const wav = await res.arrayBuffer();
