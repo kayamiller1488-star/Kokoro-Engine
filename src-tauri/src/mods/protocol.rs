@@ -139,14 +139,21 @@ pub fn handle_mod_request<R: tauri::Runtime>(
                 .header("Access-Control-Allow-Headers", "Content-Type")
                 // CSP: 移除宽泛的 localhost 通配，防止 MOD 探测本地服务
                 // connect-src 仅允许 mod:// 协议自身资源，不允许任意 localhost 端口
+                //
+                // LOCAL EXCEPTION (this fork): a MOD that owns microphone and playback
+                // inside one document can only do its job by talking to the local
+                // speech services (mouth :9881, ears :9882, brain :8091). Loopback
+                // origins are allowed for connect-src and media-src; anything
+                // off-machine is still blocked. Upstream should make this an
+                // explicit manifest grant instead of a blanket rule.
                 .header(
                     "Content-Security-Policy",
                     "default-src 'self' mod: data: blob: 'unsafe-inline'; \
                      img-src mod: data: blob:; \
-                     media-src 'self' mod: data: blob:; \
+                     media-src 'self' mod: data: blob: http://127.0.0.1:* http://localhost:*; \
                      script-src 'self' mod: 'unsafe-inline'; \
                      style-src 'self' mod: 'unsafe-inline'; \
-                     connect-src 'self' mod:;",
+                     connect-src 'self' mod: http://127.0.0.1:* http://localhost:*;",
                 )
                 .body(body)
                 .unwrap()

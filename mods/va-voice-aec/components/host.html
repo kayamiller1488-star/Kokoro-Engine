@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VA Voice (AEC)</title>
+<!--
+  VA Voice — microphone and playback owner for Kokoro-Engine.
+
+  Why this lives in an iframe instead of in her Rust code: Chromium's echo
+  cancellation only subtracts audio that enters the graph of the document that
+  owns the microphone. Her native path captures with cpal (Rust) and plays with
+  cpal (Rust), so page-played audio is never a reference for the canceller and
+  her own voice leaks into the mic at about +18 dB (measured 2026-11-22,
+  va-voice/HANDOFF.md). Here the mic AND the reply audio share one AudioContext,
+  so AEC has something to subtract.
+
+  The loop: mic -> VAD -> WAV -> ears :9882 -> transcript -> Kokoro.invoke
+  ("mod_send_message") -> host submits the turn -> chat-delta events -> speak
+  each sentence as it completes through :9881 (our mouth).
+
+  No visible UI: the host mounts this in a 1x1 container ("ModHost").
+-->
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  #log { display: none; }
+</style>
+<script src="/mod-sdk.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+(() => {
+  "use strict";
+
+  const EARS = "http://127.0.0.1:9882/transcribe";     // va-ears SenseVoice service
+  const MOUTH = "http://127.0.0.1:9881/v1/audio/speech"; // va-mouth (Kokoro)
+  const VOICE = "sasha";
+  const SAMPLE_RATE = 16000;          // SenseVoice wants 16 kHz; letting the AudioContext resample
+  const FRAME_MS = 256;               // ScriptProcessor block at 16 kHz
+  const ABS_MIN_RMS = 0.010;          // never treat this as speech, however quiet the room is
+  const SPEECH_RATIO = 3.5;           // and it must stand this far above the room's own floor
+  const SPEECH_FRAMES = 4;            // ~1 s of sustained speech before we commit: a click is not a turn
+  const SILENCE_FRAMES = 3;           // ~768 ms below threshold = they finished
+  const MIN_UTTERANCE_S = 0.6;        // anything shorter is a door, not a sentence
+  const PLAYBACK_GUARD_MS = 900;      // stay deaf through her own sentence and its tail
+  const MAX_UTTERANCE_S = 12;
+
+  const state = {
+    ctx: null, mic: null, source: null, proc: null, sink: null,
+    frames: [], voice: [], silent: 0, speaking: false, busy: false,
+    started: false, lastError: null, heard: [], spoken: 0,
+    floor: ABS_MIN_RMS, meter: [], aec: true, lastPlaybackEnd: 0, preroll: [],
+  };
+
+  const say = (msg) => console.log("[va-voice]", msg);
+
+  // Debug surface: lets the host console (or a CDP session) inspect the loop and
+  // drive one piece at a time without a UI. Harmless in normal use.
+  window.__vaVoice = state;
+  window.__vaVoiceDebug = {
+    start: () => startAudio(),
+    speak: (text) => enqueue(text || "Testing one two three."),
+    // Sample the microphone's own level for `ms`, so echo cancellation can be
+    // checked as a number (playback-time level vs silence-time level) instead
+    // of by ear.
+    sample: (ms = 1500) => new Promise((resolve) => {
+      const from = state.meter.length;
+      setTimeout(() => {
+        const window = state.meter.slice(from);
+        const sorted = [...window].sort((a, b) => a - b);
+        const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] || 0;
+        resolve({
+          frames: window.length,
+          max: Math.max(0, ...window),
+          median: at(0.5),
+          p90: at(0.9),
+          floor: state.floor,
+          threshold: Math.max(ABS_MIN_RMS, state.floor * SPEECH_RATIO),
+        });
+      }, ms);
+    }),
+    // A/B the canceller: same sentence, same window, once with echoCancellation
+    // off and once on, interleaved in one process so drift cannot fake a result.
+    restart: async (aec) => { await stopAudio(); if (state.ctx) { try { await state.ctx.close(); } catch (_) {} } state.ctx = null; state.aec = !!aec; return startAudio(); },
+    ab: async (text, ms = 3500) => {
+      const sleep = (t) => new Promise((r) => setTimeout(r, t));
+      const runOnce = async () => {
+        const measured = window.__vaVoiceDebug.sample(ms);
+        window.__vaVoiceDebug.speak(text);
+        return await measured;
+      };
+      const result = {};
+      for (const [label, aec] of [["aecOff", false], ["aecOn", true], ["aecOff2", false], ["aecOn2", true]]) {
+        await window.__vaVoiceDebug.restart(aec);
+        await sleep(1200);                        // let the canceller converge
+        result[label] = await runOnce();
+        await sleep(600);
+      }
+      await window.__vaVoiceDebug.restart(true);
+      return result;
+    },
+    stats: () => ({
+      mic: state.started ? "open" : "closed",
+      micError: state.lastError,
+      sampleRate: state.ctx && state.ctx.sampleRate,
+      ctxState: state.ctx && state.ctx.state,
+      heard: state.heard.slice(-3),
+      spokenSentences: state.spoken,
+      playing,
+      queued: queue.length,
+    }),
+  };
+
+  // ── audio plumbing ────────────────────────────────────────────────────────
+  async function startAudio() {
+    if (state.started) return true;
+    try {
+      state.ctx = new AudioContext({ sampleRate: SAMPLE_RATE, latencyHint: "interactive" });
+      if (state.ctx.state === "suspended") await state.ctx.resume();
+
+      // echoCancellation:true asks Chromium for the in-graph canceller. Because
+      // our playback goes through this same context, her voice is part of the
+      // reference signal and is removed from what we capture.
+      state.mic = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: state.aec,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+        video: false,
+      });
+
+      state.source = state.ctx.createMediaStreamSource(state.mic);
+      state.proc = state.ctx.createScriptProcessor(4096, 1, 1);
+      // The processor only runs while connected to the destination, and we must
+      // not monitor the mic to the speakers, so route it through a muted gain.
+      state.sink = state.ctx.createGain();
+      state.sink.gain.value = 0;
+      state.source.connect(state.proc);
+      state.proc.connect(state.sink);
+      state.sink.connect(state.ctx.destination);
+      state.proc.onaudioprocess = onFrame;
+
+      state.started = true;
+      say(`mic open at ${state.ctx.sampleRate} Hz, echoCancellation=${state.aec}`);
+      announce({ mic: "open", sampleRate: state.ctx.sampleRate });
+      return true;
+    } catch (err) {
+      state.lastError = String(err && err.message || err);
+      say("mic failed: " + state.lastError);
+      announce({ mic: "error", error: state.lastError });
+      return false;
+    }
+  }
+
+  async function stopAudio() {
+    // A restart mid-sentence must also kill the sentence, or the drain loop keeps
+    // believing it is still playing and every later measurement window is silent.
+    try { if (state.currentSrc) state.currentSrc.stop(); } catch (_) { /* already stopped */ }
+    state.currentSrc = null;
+    playing = false;
+    queue.length = 0;
+    try { if (state.proc) state.proc.disconnect(); } catch (_) { /* already gone */ }
+    try { if (state.source) state.source.disconnect(); } catch (_) { /* already gone */ }
+    try { if (state.mic) state.mic.getTracks().forEach((t) => t.stop()); } catch (_) { /* already gone */ }
+    try { if (state.sink) state.sink.disconnect(); } catch (_) { /* already gone */ }
+    state.proc = state.source = state.mic = state.sink = null;
+    state.started = false;
+    state.voice = []; state.silent = 0; state.speaking = false;
+  }
+
+  function announce(payload) {
+    try { Kokoro.emit("va-voice-state", payload); } catch (_) { /* host may not be listening */ }
+  }
+
+  // ── VAD / endpointing ─────────────────────────────────────────────────────
+  function rms(buf) {
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    return Math.sqrt(sum / buf.length);
+  }
+
+  function onFrame(ev) {
+    const input = ev.inputBuffer.getChannelData(0);
+    const level = rms(input);
+    state.meter.push(level);
+    if (state.meter.length > 240) state.meter.shift();   // ~4 s of history
+
+    // Track the room's own noise floor while nobody is talking, so the gate
+    // adapts to a quiet room and to a loud fan alike.
+    if (!state.speaking) {
+      state.floor = state.floor * 0.995 + Math.min(level, state.floor * 3) * 0.005;
+    }
+    const threshold = Math.max(ABS_MIN_RMS, state.floor * SPEECH_RATIO);
+
+    // Keep the last ~1.3 s regardless of level. The gate needs a second of
+    // sustained speech to trust that someone is talking, and without a pre-roll
+    // that second - the first words - is cut off. "What is the capital of Japan"
+    // arrived as "What is Japan" before this existed.
+    state.preroll.push(input.slice(0));
+    if (state.preroll.length > 5) state.preroll.shift();
+
+    if (state.busy) return;                     // a turn is in flight; ignore new audio
+    // Half-duplex: while she talks (and briefly after) the mic is ignored. AEC
+    // removes her voice from the capture path but a room reverb tail can still
+    // trip the gate, and transcribing her own words is the worst failure this
+    // loop can have - it feeds a turn back into her conversation.
+    if (playing || Date.now() - state.lastPlaybackEnd < PLAYBACK_GUARD_MS) {
+      state.voice = [];
+      state.silent = 0;
+      state.speaking = false;
+      return;
+    }
+
+    if (level >= threshold) {
+      state.voice.push(input.slice(0));
+      state.silent = 0;
+      if (!state.speaking && state.voice.length >= SPEECH_FRAMES) {
+        state.speaking = true;
+        // Prepend what came before the gate opened (everything but this frame,
+        // which is already at the tail of the preroll).
+        const pre = state.preroll.slice(0, -1);
+        if (pre.length) state.voice = [...pre, ...state.voice];
+        say("speech start");
+      }
+      if (state.frames.length < MAX_UTTERANCE_S * 1000 / FRAME_MS) state.frames.push(1);
+      return;
+    }
+
+    if (state.speaking) {
+      state.voice.push(input.slice(0));
+      state.silent += 1;
+      if (state.silent >= SILENCE_FRAMES) {
+        const utterance = state.voice.slice();
+        state.voice = [];
+        state.speaking = false;
+        state.silent = 0;
+        const seconds = utterance.length * 0.256;
+        if (seconds >= MIN_UTTERANCE_S) void handleUtterance(utterance);
+        else say(`ignored a ${seconds.toFixed(2)}s blip`);
+      }
+      return;
+    }
+
+    state.voice = [];
+    state.silent = 0;
+  }
+
+  // ── the turn ──────────────────────────────────────────────────────────────
+  async function handleUtterance(chunks) {
+    state.busy = true;
+    try {
+      const wav = encodeWav(chunks);
+      const t0 = performance.now();
+      const res = await fetch(EARS, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: wav,
+      });
+      const data = await res.json();
+      const ms = Math.round(performance.now() - t0);
+      const raw = (data.text || "").trim();
+      // SenseVoice happily returns "." or a stray "The." for a cough, a fan or the
+      // tail of her own sentence; a turn needs at least three real characters.
+      const text = (raw.match(/[\p{L}\p{N}]/gu) || []).length >= 3 ? raw : "";
+      state.heard.push({ text: raw, ms });
+      say(`heard (${ms} ms): ${text || "<nothing>"}`);
+      announce({ heard: text, ms });
+      if (!text) return;
+      await Kokoro.invoke("mod_send_message", { message: text });
+    } catch (err) {
+      say("utterance failed: " + (err && err.message || err));
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  // 16-bit mono PCM WAV from Float32 chunks already sampled at SAMPLE_RATE.
+  function encodeWav(chunks) {
+    let length = 0;
+    for (const c of chunks) length += c.length;
+    const buffer = new ArrayBuffer(44 + length * 2);
+    const view = new DataView(buffer);
+    const write = (offset, str) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    write(0, "RIFF");
+    view.setUint32(4, 36 + length * 2, true);
+    write(8, "WAVE");
+    write(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, SAMPLE_RATE, true);
+    view.setUint32(28, SAMPLE_RATE * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    write(36, "data");
+    view.setUint32(40, length * 2, true);
+    let offset = 44;
+    for (const chunk of chunks) {
+      for (let i = 0; i < chunk.length; i++) {
+        const s = Math.max(-1, Math.min(1, chunk[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return buffer;
+  }
+
+  // ── speaking her replies ──────────────────────────────────────────────────
+  const queue = [];
+  let playing = false;
+
+  async function enqueue(text) {
+    const sentence = text.trim();
+    if (!sentence) return;
+    queue.push(sentence);
+    if (!playing) void drain();
+  }
+
+  async function drain() {
+    if (playing) return;
+    playing = true;
+    while (queue.length) {
+      const sentence = queue.shift();
+      try {
+        const res = await fetch(MOUTH, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: VOICE, input: sentence, voice: VOICE }),
+        });
+        if (!res.ok) throw new Error("mouth " + res.status);
+        const wav = await res.arrayBuffer();
+        const buffer = await state.ctx.decodeAudioData(wav);
+        await new Promise((resolve) => {
+          const src = state.ctx.createBufferSource();
+          src.buffer = buffer;
+          src.connect(state.ctx.destination);
+          state.currentSrc = src;
+          src.onended = () => { state.currentSrc = null; resolve(); };
+          src.start();
+        });
+        state.spoken += 1;
+        state.lastPlaybackEnd = Date.now();
+      } catch (err) {
+        say("speak failed: " + (err && err.message || err));
+      }
+    }
+    playing = false;
+  }
+
+  // ── host events ───────────────────────────────────────────────────────────
+  let pending = "";
+  let lastDeltaKey = "";
+  let lastDeltaAt = 0;
+
+  function onDelta(payload) {
+    // The host may deliver the same delta twice (one broadcast per listener it
+    // has registered); speaking it twice is the "double voice" bug, so identical
+    // text arriving again within a second is dropped.
+    const key = `${payload.turn_id || ""}:${payload.delta || ""}`;
+    const now = Date.now();
+    if (key === lastDeltaKey && now - lastDeltaAt < 1000) return;
+    lastDeltaKey = key;
+    lastDeltaAt = now;
+    pending += payload.delta || "";
+    // Speak whole sentences as they land so the first words start early.
+    const match = pending.match(/^([\s\S]*?[.!?。！？\n])(\s*)([\s\S]*)$/);
+    if (match) {
+      enqueue(match[1]);
+      pending = match[3];
+    }
+  }
+
+  function onDone(payload) {
+    if (payload && payload.status && payload.status !== "completed") { pending = ""; return; }
+    if (pending.trim()) enqueue(pending);
+    pending = "";
+  }
+
+  // Raw message log: proves what the host actually sends to this frame, which is
+  // the fastest way to tell "host never broadcast" from "listener name mismatch".
+  window.__msgLog = [];
+  window.addEventListener("message", (event) => {
+    const msg = event.data || {};
+    window.__msgLog.push({ at: Date.now(), type: msg.type, name: msg.payload && msg.payload.name });
+    if (window.__msgLog.length > 40) window.__msgLog.shift();
+  });
+
+  // Say hello more than once. The host registers this frame on our `ready`, but
+  // a re-mount of the component can drop that registration while this document
+  // keeps running (observed: ready -> registered -> unregistered, then silence
+  // for the rest of the session). Re-announcing until traffic arrives is
+  // idempotent on the host side and costs nothing.
+  let announcements = 0;
+  let lastHostMessage = Date.now();
+  const announceReady = () => {
+    announcements += 1;
+    window.parent.postMessage({ type: "ready" }, "*");
+  };
+  window.addEventListener("message", () => { lastHostMessage = Date.now(); });
+  announceReady();
+  const readyTimer = setInterval(() => {
+    if (announcements < 12 || Date.now() - lastHostMessage > 30000) announceReady();
+    if (announcements >= 12 && Date.now() - lastHostMessage <= 30000) clearInterval(readyTimer);
+  }, 2500);
+
+  Kokoro.on("chat-delta", (payload) => onDelta(payload));
+  Kokoro.on("chat-done", (payload) => onDone(payload));
+  Kokoro.on("update", () => { void startAudio(); });
+
+  // Autoplay policy: a mod iframe has no user gesture. The build passes
+  // --autoplay-policy=no-user-gesture-required; if it is missing we resume on
+  // the first host event instead of failing silently.
+  void startAudio().then((ok) => {
+    if (!ok) {
+      const retry = () => { void startAudio(); };
+      window.addEventListener("pointerdown", retry, { once: true });
+      window.addEventListener("keydown", retry, { once: true });
+    }
+  });
+})();
+</script>
+</body>
+</html>

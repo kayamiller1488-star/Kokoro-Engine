@@ -682,12 +682,18 @@ export async function fetchModels(endpoint: string, apiKey: string): Promise<str
 
 // ── Mod System ──────────────────────────────────────
 
+const ACTIVE_MOD_KEY = "kokoro_active_mod";
+
 export async function listMods(): Promise<ModManifest[]> {
     return invoke("list_mods");
 }
 
 export async function loadMod(modId: string): Promise<ModManifest> {
-    return invoke("load_mod", { modId });
+    const result = await invoke<ModManifest>("load_mod", { modId });
+    // Remember the active MOD so a restart does not silently drop it (a MOD that
+    // owns the microphone looks "broken" if it is simply not loaded any more).
+    try { localStorage.setItem(ACTIVE_MOD_KEY, modId); } catch { /* storage disabled */ }
+    return result;
 }
 
 export async function installMod(filePath: string): Promise<ModManifest> {
@@ -749,7 +755,13 @@ export async function dispatchModEvent(event: string, payload: unknown): Promise
 }
 
 export async function unloadMod(): Promise<void> {
-    return invoke("unload_mod");
+    await invoke("unload_mod");
+    try { localStorage.removeItem(ACTIVE_MOD_KEY); } catch { /* storage disabled */ }
+}
+
+/** Read the MOD id that was active last run, if any. */
+export function readActiveModId(): string | null {
+    try { return localStorage.getItem(ACTIVE_MOD_KEY); } catch { return null; }
 }
 
 export async function onModUnload(callback: () => void): Promise<UnlistenFn> {

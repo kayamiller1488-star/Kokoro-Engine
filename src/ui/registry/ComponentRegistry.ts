@@ -14,6 +14,7 @@ interface ModComponentEntry {
 export class ComponentRegistry {
     private components = new Map<string, ComponentConstructor>();
     private modComponents = new Map<string, ModComponentEntry>();
+    private modWrappers = new Map<string, ComponentConstructor>();
     private modPermissions = new Map<string, readonly string[]>();
     private listeners = new Set<() => void>();
 
@@ -39,16 +40,25 @@ export class ComponentRegistry {
         const iframeSrc = modUrl(src);
         console.log(`[Registry] registerModComponent '${slotName}' → ${iframeSrc}`);
 
-        // Create a wrapper React component for this mod iframe
-        const ModWrapper: ComponentConstructor = (props: Record<string, unknown>) => {
-            return IframeSandbox({
-                id: `${modId}-${slotName}`,
-                src: iframeSrc,
-                permissions: [...(this.modPermissions.get(modId) ?? [])],
-                componentProps: props,
-            });
-        };
-        ModWrapper.displayName = `ModComponent(${modId}/${slotName})`;
+        // Reuse the wrapper for an unchanged registration. A fresh component
+        // identity makes React unmount the old iframe and mount a new one, and
+        // the reload's `ready` can arrive before the host listener is attached -
+        // the frame then stays unregistered and silently receives no events.
+        const cacheKey = `${modId}::${slotName}::${iframeSrc}`;
+        let ModWrapper = this.modWrappers.get(cacheKey);
+        if (!ModWrapper) {
+            const self = this;
+            ModWrapper = (props: Record<string, unknown>) => {
+                return IframeSandbox({
+                    id: `${modId}-${slotName}`,
+                    src: iframeSrc,
+                    permissions: [...(self.modPermissions.get(modId) ?? [])],
+                    componentProps: props,
+                });
+            };
+            ModWrapper.displayName = `ModComponent(${modId}/${slotName})`;
+            this.modWrappers.set(cacheKey, ModWrapper);
+        }
 
         this.components.set(slotName, ModWrapper);
         this.notify();

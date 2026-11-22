@@ -13,6 +13,7 @@ import { ThemeProvider } from "./ui/theme/ThemeContext";
 import { defaultTheme } from "./ui/theme/default";
 import { registry } from "./ui/registry/ComponentRegistry";
 import { registerCoreComponents } from "./core/init";
+import { ModHost } from "./ui/mods/ModHost";
 import { ttsService } from "./core/services";
 import SettingsPanel, { normalizeSettingsTabId, type SettingsTabId } from "./ui/widgets/SettingsPanel";
 import BackgroundLayer from "./ui/widgets/BackgroundLayer";
@@ -238,6 +239,7 @@ import {
   onChatCue,
   unloadMod,
   loadMod,
+  readActiveModId,
   installMod,
   listLive2dModels,
   getTtsConfig,
@@ -1267,6 +1269,13 @@ function App() {
       setImageGenConfig(imageGen);
       setMcpServers(mcp);
       setModList(mods);
+      // Restore the MOD that was active when the app last closed. A MOD that owns
+      // the microphone/playback is invisible in the UI, so losing it silently
+      // looks like a regression rather than a toggle being off.
+      const rememberedMod = readActiveModId();
+      if (rememberedMod && mods.some((mod) => mod.id === rememberedMod)) {
+        void loadMod(rememberedMod).catch(err => console.error('[App] Failed to restore active MOD:', err));
+      }
       setProactiveEnabledState(proactive);
       writeBooleanSetting(APP_SETTING_KEYS.proactiveEnabled, proactive);
       setTelegramConfig(telegram);
@@ -2470,6 +2479,9 @@ function App() {
         onConfirm={enableRecommendedCapabilities}
         onDismiss={() => setRecommendedCapabilities(null)}
       />
+
+      {/* Zero-size mount point a MOD can claim for background work (audio bridge, mic owner). */}
+      <ModHost />
 
       {/* Floating settings gear — top-right corner */}
       <WindowTitleBar />

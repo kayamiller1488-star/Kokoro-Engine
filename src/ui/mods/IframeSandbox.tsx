@@ -1,6 +1,6 @@
 // pattern: Imperative Shell
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { modMessageBus } from './ModMessageBus';
 import { invoke } from '@tauri-apps/api/core';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
@@ -229,6 +229,11 @@ export const IframeSandbox = ({
     const permissionsRef = useRef<readonly string[]>(permissions);
     permissionsRef.current = permissions;
     const documentGenerationRef = useRef(0);
+    // The iframe's src is withheld until the message listener below is attached.
+    // A MOD document served from cache can post `ready` before this effect runs,
+    // and that message is dropped for good: the frame then never registers with
+    // the message bus and silently receives no events.
+    const [armed, setArmed] = useState(false);
 
     // Store volatile callbacks/props in refs to avoid re-triggering the
     // message-listener useEffect (which would unregister & re-register
@@ -248,6 +253,11 @@ export const IframeSandbox = ({
     // allow-popups + allow-popups-to-escape-sandbox: enables <input type="file"> and Tauri dialogs
     const baseSandbox = 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox';
     const sandboxFlags = baseSandbox;
+    // Permissions Policy for the MOD document. Without an explicit `allow`, the
+    // host's policy denies microphone to a nested frame, so a MOD that owns
+    // mic + playback (an in-page AEC loop) could never open getDisplayMedia/
+    // getUserMedia even when the user granted it to the app.
+    const iframeAllow = 'microphone; autoplay; clipboard-write';
 
     // Send props to iframe when they change.
     // postMessage uses the structured clone algorithm which cannot handle
@@ -377,6 +387,28 @@ export const IframeSandbox = ({
 
                         let promise: Promise<unknown>;
 
+                        // mod_send_message was allowlisted but had no implementation:
+                        // a MOD could ask for it and get nothing back. Route it into
+                        // the host's own send path (the legacy 'send_message' action
+                        // listener in App.tsx) so a MOD-submitted turn is identical to
+                        // one typed into the chat box - same submitChat, same history.
+                        if (cmd === 'mod_send_message') {
+                            const args = (invokePayload.args ?? {}) as Record<string, unknown>;
+                            const rawMessage = args.message ?? args.text;
+                            const message = typeof rawMessage === 'string' ? rawMessage.trim() : '';
+                            if (!message) {
+                                respond({ id: invokePayload.id, error: 'mod_send_message requires a non-empty message' });
+                                break;
+                            }
+                            document.dispatchEvent(
+                                new CustomEvent('kokoro:mod-action', {
+                                    detail: { componentId: id, action: 'send_message', data: { message } },
+                                })
+                            );
+                            respond({ id: invokePayload.id, result: { ok: true } });
+                            break;
+                        }
+
                         if (cmd === 'plugin:dialog|open') {
                             const args = invokePayload.args ?? {};
                             promise = dialogOpen({
@@ -402,6 +434,7 @@ export const IframeSandbox = ({
         };
 
         window.addEventListener('message', handleMessage);
+        setArmed(true);
         const handleLoad = () => {
             documentGenerationRef.current += 1;
             readyRef.current = false;
@@ -423,9 +456,10 @@ export const IframeSandbox = ({
     return (
         <iframe
             ref={iframeRef}
-            src={src}
+            src={armed ? src : undefined}
             title={`Mod Component: ${id}`}
             sandbox={sandboxFlags}
+            allow={iframeAllow}
             style={{
                 border: 'none',
                 width: '100%',
