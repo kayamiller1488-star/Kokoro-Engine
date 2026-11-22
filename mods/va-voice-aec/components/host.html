@@ -55,7 +55,7 @@
   const state = {
     ctx: null, mic: null, source: null, proc: null, sink: null,
     started: false, lastError: null, aec: true,
-    rate: 0, ratio: 1, fps: 12,
+    rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
     win: [], forcedThreshold: 0, released: 0,
     floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0,
@@ -112,6 +112,7 @@
       decimation: state.ratio,
       ctxState: state.ctx && state.ctx.state,
       framesPerSecond: Number(state.fps.toFixed(2)),
+      liveGraphs: state.graphs,
       counts: counts(),
       heard: state.heard.slice(-4),
       lastWavSeconds: state.lastWavSeconds,
@@ -124,7 +125,16 @@
   };
 
   async function startAudio() {
-    if (state.started) return true;
+    if (state.started && state.proc) return true;
+    if (state.starting) return state.starting;
+    state.starting = startAudioInner();
+    try { return await state.starting; } finally { state.starting = null; }
+  }
+
+  async function startAudioInner() {
+    // A previous graph may still be attached (stopAudio failed, or a second call
+    // landed late). Tear it down before building the next one.
+    if (state.proc || state.source || state.mic) await stopAudio();
     try {
       state.ctx = new AudioContext({ latencyHint: "interactive" });
       if (state.ctx.state === "suspended") await state.ctx.resume();
@@ -157,7 +167,8 @@
       state.proc.onaudioprocess = onFrame;
 
       state.started = true;
-      say(`mic open: capture ${state.rate} Hz -> asr ${state.rate / state.ratio} Hz (1/${state.ratio}), ${state.fps.toFixed(1)} fps, echoCancellation=${state.aec}`);
+      state.graphs += 1;
+      say(`mic open (graph #${state.graphs}): capture ${state.rate} Hz -> asr ${state.rate / state.ratio} Hz (1/${state.ratio}), ${state.fps.toFixed(1)} fps, echoCancellation=${state.aec}`);
       announce({ mic: "open", captureRate: state.rate, asrRate: state.rate / state.ratio });
       return true;
     } catch (err) {
@@ -179,6 +190,7 @@
     try { if (state.sink) state.sink.disconnect(); } catch (_) {}
     state.proc = state.source = state.mic = state.sink = null;
     state.started = false;
+    state.graphs = Math.max(0, state.graphs - 1);
     state.roll = []; state.utt = null; state.loud = 0; state.silent = 0; state.speaking = false;
   }
 
