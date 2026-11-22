@@ -76,15 +76,24 @@ export const ModHost = () => {
                 type: "event",
                 payload: { name: "mic", enabled: readBooleanSetting(APP_SETTING_KEYS.modMic, true) },
             });
+        // The STT tab's language selector is a hint to the recognizer; the MOD talks to
+        // the recognizer, so pass it through instead of leaving that control inert.
+        const publishEars = () =>
+            modMessageBus.broadcast({
+                type: "event",
+                payload: { name: "ears", language: readStringSetting(APP_SETTING_KEYS.sttLanguage, "") },
+            });
         const onMicToggle = () => publishMic();
         window.addEventListener("kokoro:mod-mic", onMicToggle);
         publishInterrupt();
         publishCharacter();
         publishMic();
+        publishEars();
         const interval = window.setInterval(() => {
             publishInterrupt();
             publishCharacter();
             publishMic();
+            publishEars();
         }, 1500);
 
         return () => {

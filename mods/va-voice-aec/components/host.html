@@ -60,7 +60,7 @@
   const MAX_UTTERANCE_S = 15;
 
   const state = {
-    characterId: "", voice: VOICE, micEnabled: true,
+    characterId: "", voice: VOICE, micEnabled: true, earLanguage: "", lastEarsUrl: "",
     ctx: null, mic: null, source: null, proc: null, sink: null,
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
@@ -383,7 +383,9 @@
       state.lastWav = btoa(binary);
 
       const t0 = performance.now();
-      const res = await fetch(EARS, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: wav });
+      const earsUrl = state.earLanguage ? `${EARS}?language=${encodeURIComponent(state.earLanguage)}` : EARS;
+      state.lastEarsUrl = earsUrl;
+      const res = await fetch(earsUrl, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: wav });
       const data = await res.json();
       const ms = Math.round(performance.now() - t0);
       const raw = (data.text || "").trim();
@@ -545,6 +547,16 @@
   });
   // The chat mic button is the single switch: off must actually stop capture, on
   // must reopen it. Without this the icon said "off" while the frame kept hearing.
+  // Language hint for the ears: "" = auto. A pinned language is what turns
+  // 'Knaan.' into 'かなちゃん。' when a short Japanese phrase is too quiet to
+  // be auto-detected. Costs a second recognizer (~270 MB) only when pinned.
+  Kokoro.on("ears", (payload) => {
+    const language = String((payload && payload.language) || "").toLowerCase();
+    if (language !== state.earLanguage) {
+      state.earLanguage = language;
+      say(`ears language -> ${language || "auto"}`);
+    }
+  });
   Kokoro.on("mic", (payload) => {
     const enabled = !(payload && payload.enabled === false);
     if (enabled === state.micEnabled) return;
