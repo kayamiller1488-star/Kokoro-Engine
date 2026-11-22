@@ -98,6 +98,11 @@ impl VaStack {
         command
             .arg(spec.script)
             .current_dir(project)
+            // The ears print transcripts verbatim; a redirected stdout on Windows uses
+            // the locale codec, so a Japanese transcript used to die with
+            // UnicodeEncodeError inside the log line and the request never got answered.
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
             .stdin(Stdio::null())
             .stdout(log_file(spec.project, spec.name, false))
             .stderr(log_file(spec.project, spec.name, true));
