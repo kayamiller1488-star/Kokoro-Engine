@@ -171,6 +171,11 @@
       }
       state.fps = state.rate / BLOCK;
 
+      // The host may switch the mic off while getUserMedia is still resolving; it
+      // cannot see this in-flight permission, so the stream lands *after* stopAudio()
+      // ran and the mic stays live while the icon says off. Re-check after every wait.
+      if (state.micEnabled === false) { await stopAudio(); return false; }
+
       state.mic = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: state.aec,
@@ -181,6 +186,8 @@
         },
         video: false,
       });
+
+      if (state.micEnabled === false) { await stopAudio(); return false; }
 
       state.source = state.ctx.createMediaStreamSource(state.mic);
       state.proc = state.ctx.createScriptProcessor(BLOCK, 1, 1);
@@ -577,8 +584,16 @@
     if (enabled === state.micEnabled) return;
     state.micEnabled = enabled;
     say(`mic ${enabled ? "on" : "off"}`);
-    if (enabled) { state.busy = false; void startAudio(); }
-    else { void stopAudio(); }
+    if (enabled) {
+      state.busy = false;
+      void startAudio();
+    } else {
+      // Stop now AND after any in-flight start completes, or a permission prompt
+      // that resolves later re-opens the microphone the owner just closed.
+      const inFlight = state.starting;
+      void stopAudio();
+      if (inFlight) void inFlight.then(() => stopAudio()).catch(() => {});
+    }
   });
   Kokoro.on("chat-delta", (payload) => onDelta(payload));
   Kokoro.on("chat-done", (payload) => onDone(payload));
