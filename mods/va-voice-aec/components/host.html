@@ -4,20 +4,26 @@
 <meta charset="UTF-8">
 <title>VA Voice (AEC)</title>
 <!--
-  VA Voice — microphone and playback owner for Kokoro-Engine.
+  VA Voice - microphone and playback owner for Kokoro-Engine.
 
-  Why this lives in an iframe instead of in her Rust code: Chromium's echo
-  cancellation only subtracts audio that enters the graph of the document that
-  owns the microphone. Her native path captures with cpal (Rust) and plays with
-  cpal (Rust), so page-played audio is never a reference for the canceller and
-  her own voice leaks into the mic at about +18 dB (measured 2026-11-22,
-  va-voice/HANDOFF.md). Here the mic AND the reply audio share one AudioContext,
-  so AEC has something to subtract.
+  Chromium's echo cancellation only subtracts audio that enters the graph of the
+  document that owns the microphone, so the mic and her reply audio share one
+  AudioContext here. The native path (cpal capture + cpal playback) leaks her own
+  voice into the mic at ~+18 dB; measured ERLE of this document: ~16.5 dB.
 
-  The loop: mic -> VAD -> WAV -> ears :9882 -> transcript -> Kokoro.invoke
-  ("mod_send_message") -> host submits the turn -> chat-delta events -> speak
-  each sentence as it completes through :9881 (our mouth).
+  Capture rules learned the hard way (owner report 2026-11-22: "her hearing is
+  worse now", "can you hear me" -> "you me me", slow speech -> Chinese 有有有有):
+    * The graph runs at the device rate. WebRTC's canceller is built for 48 kHz;
+      at 16 kHz it degrades and its residual suppression eats near-end speech. We
+      decimate to 16 kHz ourselves, after the canceller, for SenseVoice.
+    * noiseSuppression and autoGainControl stay OFF - telephony-tuned, they chew
+      consonants. SenseVoice is robust; we do not need them.
+    * ONE buffer, never two. The first version kept a pre-roll ring AND a speech
+      buffer and prepended the ring to the buffer, duplicating the opening
+      frames. Stuttered audio is exactly what makes an ASR reply 有有有有.
 
+  Loop: mic -> VAD -> WAV -> ears :9882 -> transcript -> Kokoro.invoke
+  ("mod_send_message") -> host turn -> chat-delta -> speak via :9881.
   No visible UI: the host mounts this in a 1x1 container ("ModHost").
 -->
 <style>
@@ -32,109 +38,117 @@
 (() => {
   "use strict";
 
-  const EARS = "http://127.0.0.1:9882/transcribe";     // va-ears SenseVoice service
-  const MOUTH = "http://127.0.0.1:9881/v1/audio/speech"; // va-mouth (Kokoro)
+  const EARS = "http://127.0.0.1:9882/transcribe";
+  const MOUTH = "http://127.0.0.1:9881/v1/audio/speech";
   const VOICE = "sasha";
-  const SAMPLE_RATE = 16000;          // SenseVoice wants 16 kHz; letting the AudioContext resample
-  const FRAME_MS = 256;               // ScriptProcessor block at 16 kHz
-  const ABS_MIN_RMS = 0.010;          // never treat this as speech, however quiet the room is
-  const SPEECH_RATIO = 3.5;           // and it must stand this far above the room's own floor
-  const SPEECH_FRAMES = 4;            // ~1 s of sustained speech before we commit: a click is not a turn
-  const SILENCE_FRAMES = 3;           // ~768 ms below threshold = they finished
-  const MIN_UTTERANCE_S = 0.6;        // anything shorter is a door, not a sentence
-  const PLAYBACK_GUARD_MS = 900;      // stay deaf through her own sentence and its tail
-  const MAX_UTTERANCE_S = 12;
+  const ASR_RATE = 16000;
+  const BLOCK = 4096;
+  const ABS_MIN_RMS = 0.0015;
+  const SPEECH_RATIO = 2.0;
+  const SPEECH_S = 0.7;
+  const SILENCE_S = 0.65;
+  const PREROLL_S = 1.2;
+  const MIN_UTTERANCE_S = 0.5;
+  const PLAYBACK_GUARD_MS = 900;
+  const MAX_UTTERANCE_S = 15;
 
   const state = {
     ctx: null, mic: null, source: null, proc: null, sink: null,
-    frames: [], voice: [], silent: 0, speaking: false, busy: false,
-    started: false, lastError: null, heard: [], spoken: 0,
-    floor: ABS_MIN_RMS, meter: [], aec: true, lastPlaybackEnd: 0, preroll: [],
+    started: false, lastError: null, aec: true,
+    rate: 0, ratio: 1, fps: 12,
+    roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
+    win: [], forcedThreshold: 0, released: 0,
+    floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0,
+    heard: [], spoken: 0, lastWav: null, lastWavSeconds: 0,
+    maxLevel: 0, maxThreshold: 0, history: [],
   };
 
   const say = (msg) => console.log("[va-voice]", msg);
+  /** Seconds represented by `frames` capture frames. A frame is BLOCK samples at
+   *  the capture rate (~85 ms); the decimated array inside it is not a time unit. */
+  const framesToSeconds = (frames) => (frames * BLOCK) / (state.rate || 48000);
+  const counts = () => ({
+    speechFrames: Math.max(2, Math.round(SPEECH_S * state.fps)),
+    loudNeeded: Math.max(2, Math.ceil(Math.round(SPEECH_S * state.fps) / 2)),
+    silenceFrames: Math.max(2, Math.round(SILENCE_S * state.fps)),
+    prerollFrames: Math.max(2, Math.round(PREROLL_S * state.fps)),
+  });
 
-  // Debug surface: lets the host console (or a CDP session) inspect the loop and
-  // drive one piece at a time without a UI. Harmless in normal use.
   window.__vaVoice = state;
+  window.__vaVoiceResetLevels = () => { state.maxLevel = 0; state.maxThreshold = 0; };
   window.__vaVoiceDebug = {
     start: () => startAudio(),
     speak: (text) => enqueue(text || "Testing one two three."),
-    // Sample the microphone's own level for `ms`, so echo cancellation can be
-    // checked as a number (playback-time level vs silence-time level) instead
-    // of by ear.
+    restart: async (aec) => {
+      await stopAudio();
+      if (state.ctx) { try { await state.ctx.close(); } catch (_) {} }
+      state.ctx = null; state.aec = !!aec;
+      return startAudio();
+    },
+    lastWav: () => state.lastWav,
+    /** Force (or clear, with 0) the speech threshold - lets a capture test run
+     *  without a human in front of the mic. */
+    forceGate: (threshold) => { state.forcedThreshold = Number(threshold) || 0; return state.forcedThreshold; },
+    retranscribe: async () => {
+      if (!state.lastWav) return { error: "no utterance captured yet" };
+      const bytes = Uint8Array.from(atob(state.lastWav), (c) => c.charCodeAt(0));
+      const res = await fetch(EARS, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: bytes });
+      return await res.json();
+    },
     sample: (ms = 1500) => new Promise((resolve) => {
       const from = state.meter.length;
       setTimeout(() => {
-        const window = state.meter.slice(from);
-        const sorted = [...window].sort((a, b) => a - b);
+        const w = state.meter.slice(from);
+        const sorted = [...w].sort((a, b) => a - b);
         const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] || 0;
-        resolve({
-          frames: window.length,
-          max: Math.max(0, ...window),
-          median: at(0.5),
-          p90: at(0.9),
-          floor: state.floor,
-          threshold: Math.max(ABS_MIN_RMS, state.floor * SPEECH_RATIO),
-        });
+        resolve({ frames: w.length, max: Math.max(0, ...w), median: at(0.5), p90: at(0.9), floor: state.floor });
       }, ms);
     }),
-    // A/B the canceller: same sentence, same window, once with echoCancellation
-    // off and once on, interleaved in one process so drift cannot fake a result.
-    restart: async (aec) => { await stopAudio(); if (state.ctx) { try { await state.ctx.close(); } catch (_) {} } state.ctx = null; state.aec = !!aec; return startAudio(); },
-    ab: async (text, ms = 3500) => {
-      const sleep = (t) => new Promise((r) => setTimeout(r, t));
-      const runOnce = async () => {
-        const measured = window.__vaVoiceDebug.sample(ms);
-        window.__vaVoiceDebug.speak(text);
-        return await measured;
-      };
-      const result = {};
-      for (const [label, aec] of [["aecOff", false], ["aecOn", true], ["aecOff2", false], ["aecOn2", true]]) {
-        await window.__vaVoiceDebug.restart(aec);
-        await sleep(1200);                        // let the canceller converge
-        result[label] = await runOnce();
-        await sleep(600);
-      }
-      await window.__vaVoiceDebug.restart(true);
-      return result;
-    },
     stats: () => ({
       mic: state.started ? "open" : "closed",
       micError: state.lastError,
-      sampleRate: state.ctx && state.ctx.sampleRate,
+      captureRate: state.rate,
+      asrRate: state.rate / state.ratio,
+      decimation: state.ratio,
       ctxState: state.ctx && state.ctx.state,
-      heard: state.heard.slice(-3),
+      framesPerSecond: Number(state.fps.toFixed(2)),
+      counts: counts(),
+      heard: state.heard.slice(-4),
+      lastWavSeconds: state.lastWavSeconds,
+      loudestLevel: Number(state.maxLevel.toFixed(4)),
+      highestThreshold: Number(state.maxThreshold.toFixed(4)),
       spokenSentences: state.spoken,
       playing,
       queued: queue.length,
     }),
   };
 
-  // ── audio plumbing ────────────────────────────────────────────────────────
   async function startAudio() {
     if (state.started) return true;
     try {
-      state.ctx = new AudioContext({ sampleRate: SAMPLE_RATE, latencyHint: "interactive" });
+      state.ctx = new AudioContext({ latencyHint: "interactive" });
       if (state.ctx.state === "suspended") await state.ctx.resume();
+      state.rate = state.ctx.sampleRate;
+      state.ratio = Math.max(1, Math.round(state.rate / ASR_RATE));
+      if (Math.abs(state.rate / state.ratio - ASR_RATE) > ASR_RATE * 0.01) {
+        say(`cannot decimate ${state.rate} Hz to ${ASR_RATE} Hz exactly; sending native rate`);
+        state.ratio = 1;
+      }
+      state.fps = state.rate / BLOCK;
 
-      // echoCancellation:true asks Chromium for the in-graph canceller. Because
-      // our playback goes through this same context, her voice is part of the
-      // reference signal and is removed from what we capture.
       state.mic = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: state.aec,
-          noiseSuppression: true,
-          autoGainControl: true,
+          noiseSuppression: false,
+          autoGainControl: false,
           channelCount: 1,
+          sampleRate: state.rate,
         },
         video: false,
       });
 
       state.source = state.ctx.createMediaStreamSource(state.mic);
-      state.proc = state.ctx.createScriptProcessor(4096, 1, 1);
-      // The processor only runs while connected to the destination, and we must
-      // not monitor the mic to the speakers, so route it through a muted gain.
+      state.proc = state.ctx.createScriptProcessor(BLOCK, 1, 1);
       state.sink = state.ctx.createGain();
       state.sink.gain.value = 0;
       state.source.connect(state.proc);
@@ -143,8 +157,8 @@
       state.proc.onaudioprocess = onFrame;
 
       state.started = true;
-      say(`mic open at ${state.ctx.sampleRate} Hz, echoCancellation=${state.aec}`);
-      announce({ mic: "open", sampleRate: state.ctx.sampleRate });
+      say(`mic open: capture ${state.rate} Hz -> asr ${state.rate / state.ratio} Hz (1/${state.ratio}), ${state.fps.toFixed(1)} fps, echoCancellation=${state.aec}`);
+      announce({ mic: "open", captureRate: state.rate, asrRate: state.rate / state.ratio });
       return true;
     } catch (err) {
       state.lastError = String(err && err.message || err);
@@ -155,118 +169,166 @@
   }
 
   async function stopAudio() {
-    // A restart mid-sentence must also kill the sentence, or the drain loop keeps
-    // believing it is still playing and every later measurement window is silent.
-    try { if (state.currentSrc) state.currentSrc.stop(); } catch (_) { /* already stopped */ }
+    try { if (state.currentSrc) state.currentSrc.stop(); } catch (_) {}
     state.currentSrc = null;
     playing = false;
     queue.length = 0;
-    try { if (state.proc) state.proc.disconnect(); } catch (_) { /* already gone */ }
-    try { if (state.source) state.source.disconnect(); } catch (_) { /* already gone */ }
-    try { if (state.mic) state.mic.getTracks().forEach((t) => t.stop()); } catch (_) { /* already gone */ }
-    try { if (state.sink) state.sink.disconnect(); } catch (_) { /* already gone */ }
+    try { if (state.proc) state.proc.disconnect(); } catch (_) {}
+    try { if (state.source) state.source.disconnect(); } catch (_) {}
+    try { if (state.mic) state.mic.getTracks().forEach((t) => t.stop()); } catch (_) {}
+    try { if (state.sink) state.sink.disconnect(); } catch (_) {}
     state.proc = state.source = state.mic = state.sink = null;
     state.started = false;
-    state.voice = []; state.silent = 0; state.speaking = false;
+    state.roll = []; state.utt = null; state.loud = 0; state.silent = 0; state.speaking = false;
   }
 
   function announce(payload) {
-    try { Kokoro.emit("va-voice-state", payload); } catch (_) { /* host may not be listening */ }
+    try { Kokoro.emit("va-voice-state", payload); } catch (_) {}
   }
 
-  // ── VAD / endpointing ─────────────────────────────────────────────────────
   function rms(buf) {
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     return Math.sqrt(sum / buf.length);
   }
 
+  function decimate(input) {
+    const r = state.ratio;
+    if (r <= 1) return input.slice(0);
+    const out = new Float32Array(Math.floor(input.length / r));
+    for (let i = 0; i < out.length; i++) {
+      let sum = 0;
+      for (let k = 0; k < r; k++) sum += input[i * r + k];
+      out[i] = sum / r;
+    }
+    return out;
+  }
+
   function onFrame(ev) {
     const input = ev.inputBuffer.getChannelData(0);
     const level = rms(input);
     state.meter.push(level);
-    if (state.meter.length > 240) state.meter.shift();   // ~4 s of history
+    if (state.meter.length > 240) state.meter.shift();
 
-    // Track the room's own noise floor while nobody is talking, so the gate
-    // adapts to a quiet room and to a loud fan alike.
-    if (!state.speaking) {
-      state.floor = state.floor * 0.995 + Math.min(level, state.floor * 3) * 0.005;
+    state.history.push(level);
+    if (state.history.length > 48) state.history.shift();      // ~4 s at 11.7 fps
+    if (state.history.length >= 8 && !state.speaking) {
+      const sorted = [...state.history].sort((a, b) => a - b);
+      state.floor = sorted[Math.floor(sorted.length * 0.2)] || ABS_MIN_RMS;
     }
-    const threshold = Math.max(ABS_MIN_RMS, state.floor * SPEECH_RATIO);
+    const threshold = state.forcedThreshold || Math.max(ABS_MIN_RMS, state.floor * (SPEECH_RATIO + 1.5));
+    // Two levels: it takes a clearly loud frame to open the microphone's ear, but
+    // only a quieter one to keep it open. One level made the endpoint wait for a
+    // silence the room never delivered.
+    const release = state.forcedThreshold || Math.max(ABS_MIN_RMS * 0.67, state.floor * (SPEECH_RATIO + 0.2));
+    if (level > state.maxLevel) state.maxLevel = level;
+    if (threshold > state.maxThreshold) state.maxThreshold = threshold;
+    const c = counts();
 
-    // Keep the last ~1.3 s regardless of level. The gate needs a second of
-    // sustained speech to trust that someone is talking, and without a pre-roll
-    // that second - the first words - is cut off. "What is the capital of Japan"
-    // arrived as "What is Japan" before this existed.
-    state.preroll.push(input.slice(0));
-    if (state.preroll.length > 5) state.preroll.shift();
-
-    if (state.busy) return;                     // a turn is in flight; ignore new audio
-    // Half-duplex: while she talks (and briefly after) the mic is ignored. AEC
-    // removes her voice from the capture path but a room reverb tail can still
-    // trip the gate, and transcribing her own words is the worst failure this
-    // loop can have - it feeds a turn back into her conversation.
+    if (state.busy) return;
     if (playing || Date.now() - state.lastPlaybackEnd < PLAYBACK_GUARD_MS) {
-      state.voice = [];
-      state.silent = 0;
-      state.speaking = false;
+      state.roll = []; state.utt = null;
+      state.loud = 0; state.silent = 0; state.speaking = false;
       return;
     }
 
-    if (level >= threshold) {
-      state.voice.push(input.slice(0));
-      state.silent = 0;
-      if (!state.speaking && state.voice.length >= SPEECH_FRAMES) {
+    const frame = decimate(input);
+
+    // Rolling evidence window, not a run of consecutive frames: ordinary speech
+    // dips below any single threshold between syllables, and a consecutive-frame
+    // rule silently never fired on real speech.
+    state.win.push(level >= threshold);
+    while (state.win.length > c.speechFrames) state.win.shift();
+
+    if (!state.speaking) {
+      state.roll.push(frame);
+      if (state.roll.length > c.prerollFrames) state.roll.shift();
+      const loudFrames = state.win.filter(Boolean).length;
+      if (loudFrames >= c.loudNeeded) {
         state.speaking = true;
-        // Prepend what came before the gate opened (everything but this frame,
-        // which is already at the tail of the preroll).
-        const pre = state.preroll.slice(0, -1);
-        if (pre.length) state.voice = [...pre, ...state.voice];
-        say("speech start");
-      }
-      if (state.frames.length < MAX_UTTERANCE_S * 1000 / FRAME_MS) state.frames.push(1);
-      return;
-    }
-
-    if (state.speaking) {
-      state.voice.push(input.slice(0));
-      state.silent += 1;
-      if (state.silent >= SILENCE_FRAMES) {
-        const utterance = state.voice.slice();
-        state.voice = [];
-        state.speaking = false;
+        state.utt = state.roll.slice();
         state.silent = 0;
-        const seconds = utterance.length * 0.256;
-        if (seconds >= MIN_UTTERANCE_S) void handleUtterance(utterance);
-        else say(`ignored a ${seconds.toFixed(2)}s blip`);
+        say(`speech start (${framesToSeconds(state.utt.length).toFixed(2)} s in hand, ${loudFrames}/${state.win.length} loud)`);
       }
       return;
     }
 
-    state.voice = [];
-    state.silent = 0;
+    state.utt.push(frame);
+    if (level >= release) state.silent = 0;
+    else state.silent += 1;
+
+    const asrRate = state.rate / state.ratio;
+    const seconds = framesToSeconds(state.utt.length);
+    const tooLong = seconds > MAX_UTTERANCE_S;
+    if (state.silent >= c.silenceFrames || tooLong) {
+      // Trim the tail relative to this utterance's own loudness, not to the room
+      // floor: a steady noise bed above the floor kept a 2.2 s question open for
+      // 7 s, and the ASR invented words in the padding ("capitality").
+      let utterance = state.utt;
+      const levels = utterance.map((f) => rms(f)).sort((a, b) => a - b);
+      const p90 = levels[Math.floor(levels.length * 0.9)] || 0;
+      const cut = p90 * 0.25;
+      let end = utterance.length;
+      while (end > 1 && rms(utterance[end - 1]) < cut) end -= 1;
+      utterance = utterance.slice(0, Math.min(utterance.length, end + 2));
+      state.utt = null;
+      state.roll = [];
+      state.speaking = false;
+      state.loud = 0;
+      state.silent = 0;
+      if (seconds >= MIN_UTTERANCE_S) void handleUtterance(utterance, asrRate);
+      else say(`ignored a ${seconds.toFixed(2)}s blip`);
+    }
   }
 
-  // ── the turn ──────────────────────────────────────────────────────────────
-  async function handleUtterance(chunks) {
+  async function handleUtterance(chunks, asrRate) {
     state.busy = true;
     try {
-      const wav = encodeWav(chunks);
-      const t0 = performance.now();
-      const res = await fetch(EARS, {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: wav,
+      // Peak-normalise to 0.85. AutoGainControl is off on purpose (it pumps and
+      // hides syllables), so makeup gain belongs here, once, on the exact audio
+      // the ASR will see - not as a live AGC in the capture path.
+      let peakIn = 0;
+      for (const chunk of chunks) for (let i = 0; i < chunk.length; i++) {
+        const v = Math.abs(chunk[i]); if (v > peakIn) peakIn = v;
+      }
+      const gain = peakIn > 0.02 && peakIn < 0.85 ? 0.85 / peakIn : 1;
+      const scaled = gain === 1 ? chunks : chunks.map((chunk) => {
+        const out = new Float32Array(chunk.length);
+        for (let i = 0; i < chunk.length; i++) out[i] = chunk[i] * gain;
+        return out;
       });
+
+      const wav = encodeWav(scaled, asrRate);
+      let totalSamples = 0;
+      for (const chunk of chunks) totalSamples += chunk.length;
+      state.lastWavSeconds = totalSamples / asrRate;
+      let sum = 0, peak = 0, n = 0;
+      for (const chunk of chunks) {
+        for (let i = 0; i < chunk.length; i++) {
+          const v = chunk[i]; sum += v * v; n += 1;
+          if (Math.abs(v) > peak) peak = Math.abs(v);
+        }
+      }
+      const captured = { bytes: wav.byteLength, seconds: Number(state.lastWavSeconds.toFixed(2)), frames: chunks.length,
+                         rms: Number(Math.sqrt(sum / Math.max(1, n)).toFixed(4)), peak: Number(peak.toFixed(3)),
+                         gain: Number(gain.toFixed(1)) };
+
+      const view = new Uint8Array(wav);
+      let binary = "";
+      for (let i = 0; i < view.length; i += 0x8000) {
+        binary += String.fromCharCode.apply(null, view.subarray(i, i + 0x8000));
+      }
+      state.lastWav = btoa(binary);
+
+      const t0 = performance.now();
+      const res = await fetch(EARS, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: wav });
       const data = await res.json();
       const ms = Math.round(performance.now() - t0);
       const raw = (data.text || "").trim();
-      // SenseVoice happily returns "." or a stray "The." for a cough, a fan or the
-      // tail of her own sentence; a turn needs at least three real characters.
       const text = (raw.match(/[\p{L}\p{N}]/gu) || []).length >= 3 ? raw : "";
-      state.heard.push({ text: raw, ms });
-      say(`heard (${ms} ms): ${text || "<nothing>"}`);
-      announce({ heard: text, ms });
+      state.heard.push({ text: raw, ms, seconds: captured.seconds, rms: captured.rms, peak: captured.peak });
+      say(`heard (${ms} ms, ${captured.seconds}s, rms ${captured.rms}, peak ${captured.peak}, gain x${captured.gain}): ${raw || "<nothing>"}`);
+      announce({ heard: text, ms, captured });
       if (!text) return;
       await Kokoro.invoke("mod_send_message", { message: text });
     } catch (err) {
@@ -276,8 +338,7 @@
     }
   }
 
-  // 16-bit mono PCM WAV from Float32 chunks already sampled at SAMPLE_RATE.
-  function encodeWav(chunks) {
+  function encodeWav(chunks, rate) {
     let length = 0;
     for (const c of chunks) length += c.length;
     const buffer = new ArrayBuffer(44 + length * 2);
@@ -292,8 +353,8 @@
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true);
     view.setUint16(22, 1, true);
-    view.setUint32(24, SAMPLE_RATE, true);
-    view.setUint32(28, SAMPLE_RATE * 2, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
     view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
     write(36, "data");
@@ -309,7 +370,6 @@
     return buffer;
   }
 
-  // ── speaking her replies ──────────────────────────────────────────────────
   const queue = [];
   let playing = false;
 
@@ -351,22 +411,17 @@
     playing = false;
   }
 
-  // ── host events ───────────────────────────────────────────────────────────
   let pending = "";
   let lastDeltaKey = "";
   let lastDeltaAt = 0;
 
   function onDelta(payload) {
-    // The host may deliver the same delta twice (one broadcast per listener it
-    // has registered); speaking it twice is the "double voice" bug, so identical
-    // text arriving again within a second is dropped.
     const key = `${payload.turn_id || ""}:${payload.delta || ""}`;
     const now = Date.now();
     if (key === lastDeltaKey && now - lastDeltaAt < 1000) return;
     lastDeltaKey = key;
     lastDeltaAt = now;
     pending += payload.delta || "";
-    // Speak whole sentences as they land so the first words start early.
     const match = pending.match(/^([\s\S]*?[.!?。！？\n])(\s*)([\s\S]*)$/);
     if (match) {
       enqueue(match[1]);
@@ -380,8 +435,6 @@
     pending = "";
   }
 
-  // Raw message log: proves what the host actually sends to this frame, which is
-  // the fastest way to tell "host never broadcast" from "listener name mismatch".
   window.__msgLog = [];
   window.addEventListener("message", (event) => {
     const msg = event.data || {};
@@ -389,11 +442,6 @@
     if (window.__msgLog.length > 40) window.__msgLog.shift();
   });
 
-  // Say hello more than once. The host registers this frame on our `ready`, but
-  // a re-mount of the component can drop that registration while this document
-  // keeps running (observed: ready -> registered -> unregistered, then silence
-  // for the rest of the session). Re-announcing until traffic arrives is
-  // idempotent on the host side and costs nothing.
   let announcements = 0;
   let lastHostMessage = Date.now();
   const announceReady = () => {
@@ -411,9 +459,6 @@
   Kokoro.on("chat-done", (payload) => onDone(payload));
   Kokoro.on("update", () => { void startAudio(); });
 
-  // Autoplay policy: a mod iframe has no user gesture. The build passes
-  // --autoplay-policy=no-user-gesture-required; if it is missing we resume on
-  // the first host event instead of failing silently.
   void startAudio().then((ok) => {
     if (!ok) {
       const retry = () => { void startAudio(); };
