@@ -18,6 +18,7 @@ pub mod stt;
 pub mod telegram;
 pub mod tts;
 pub mod utils;
+pub mod va_stack;
 pub mod vision;
 use crate::hooks::{AuditLogHookHandler, HookRuntime};
 use crate::mods::ModManager;
@@ -922,10 +923,26 @@ pub fn run() {
                 startup_begin.elapsed().as_millis()
             );
 
+            // The AEC voice MOD runs inside this webview: it can capture the mic and
+            // play audio, but it cannot start a process. The app therefore owns the
+            // two speech services - started when missing, checked every 30 s, and
+            // killed again on exit. No external scheduler, no window, nothing left
+            // running after the window closes.
+            let va_stack = std::sync::Arc::new(crate::va_stack::VaStack::default());
+            app.manage(va_stack.clone());
+            va_stack.supervise();
+
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                if let Some(stack) = app_handle.try_state::<std::sync::Arc<crate::va_stack::VaStack>>() {
+                    stack.stop_all();
+                }
+            }
+        });
 }
 
 fn is_usable_dylib(path: &Path) -> bool {
