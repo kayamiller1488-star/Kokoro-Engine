@@ -19,6 +19,7 @@ pub mod telegram;
 pub mod tts;
 pub mod utils;
 pub mod va_stack;
+pub mod window_state;
 pub mod vision;
 use crate::hooks::{AuditLogHookHandler, HookRuntime};
 use crate::mods::ModManager;
@@ -312,10 +313,17 @@ pub fn run() {
             stt::stream::prune_audio_buffer,
         ])
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if window.label() == "main" {
-                    window.app_handle().exit(0);
-                    return;
+            if window.label() == "main" {
+                match event {
+                    tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+                        crate::window_state::mark_dirty();
+                    }
+                    tauri::WindowEvent::CloseRequested { .. } => {
+                        crate::window_state::save_now(window);
+                        window.app_handle().exit(0);
+                        return;
+                    }
+                    _ => {}
                 }
             }
 
@@ -342,6 +350,9 @@ pub fn run() {
         })
         .setup(|app| {
             let startup_begin = std::time::Instant::now();
+            // Put the main window back where the owner left it (monitor 2, usually).
+            crate::window_state::restore_main_window(app.handle());
+            crate::window_state::spawn_settler(app.handle().clone());
             tracing::info!(target: "startup", "setup begin");
             app.manage(crate::commands::pet::PetShortcutState::default());
 
