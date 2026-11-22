@@ -1,4 +1,4 @@
-# Persona snapshot — 2026-11-22 (activation revision 61)
+# Persona snapshot — 2026-11-22 (activation revision 64)
 
 The persona the app actually runs lives in the **database**, not in
 `characters/<id>/1.0.0/character.json` (that file is ignored at activation). This folder is the
