@@ -324,7 +324,12 @@
       const cut = p90 * 0.25;
       let end = utterance.length;
       while (end > 1 && rms(utterance[end - 1]) < cut) end -= 1;
-      utterance = utterance.slice(0, Math.min(utterance.length, end + 2));
+      // Short utterances live or die on their last mora: 日本語「いいよ」 came back as
+      // "Yよ。" and 「うん」 as Chinese 嗯。 when the tail was shaved. Keep at most 10%
+      // of the frames off the end (plus 4 frames of slack) and let the ASR hear it.
+      const floorEnd = utterance.length - Math.max(4, Math.round(utterance.length * 0.10));
+      end = Math.max(end, floorEnd);
+      utterance = utterance.slice(0, Math.min(utterance.length, end + 4));
       state.utt = null;
       state.roll = [];
       state.speaking = false;
@@ -352,7 +357,10 @@
         return out;
       });
 
-      const wav = encodeWav(scaled, asrRate);
+      // 200 ms of silence on the tail. Measured on short Japanese: 「いいよ」 went
+      // from "Yよ。" to "いいよ。", 「うん」 from 嗯。 (Chinese) to うん。 (Japanese).
+      const tail = new Float32Array(Math.round(asrRate * 0.2));
+      const wav = encodeWav(tail.length ? [...scaled, tail] : scaled, asrRate);
       let totalSamples = 0;
       for (const chunk of chunks) totalSamples += chunk.length;
       state.lastWavSeconds = totalSamples / asrRate;
