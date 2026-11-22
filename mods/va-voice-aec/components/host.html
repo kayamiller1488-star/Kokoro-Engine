@@ -81,7 +81,13 @@
   const SILENCE_S = 0.65;
   const PREROLL_S = 1.2;
   const MIN_UTTERANCE_S = 0.5;
-  const PLAYBACK_GUARD_MS = 900;
+  // Deaf window after her voice stops. It exists so her own reverb tail cannot be
+  // transcribed as the next turn - but 900 ms swallowed quick replies: measured, a
+  // 2.67 s question started 300 ms after she stopped was captured 1.56 s long with a
+  // 900 ms guard. The tail itself is harmless: after playback the mic peaked at
+  // 0.00064 against a 0.0015 speech threshold, so 300 ms is ~4x the margin the data
+  // asks for. Runtime-overridable via __vaVoice.guardMs for measurement.
+  const PLAYBACK_GUARD_MS = 300;
   const MAX_UTTERANCE_S = 15;
 
   const state = {
@@ -92,7 +98,7 @@
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
     win: [], forcedThreshold: 0, released: 0, bargeIn: false, playbackStartedAt: 0,
-    floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0,
+    floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0, guardMs: PLAYBACK_GUARD_MS,
     heard: [], spoken: 0, lastWav: null, lastWavSeconds: 0,
     maxLevel: 0, maxThreshold: 0, history: [],
   };
@@ -315,7 +321,7 @@
 
     // Briefly deaf after she finishes: a reverb tail would otherwise be
     // transcribed as the user's next turn.
-    if (Date.now() - state.lastPlaybackEnd < PLAYBACK_GUARD_MS) {
+    if (Date.now() - state.lastPlaybackEnd < state.guardMs) {
       state.roll = []; state.utt = null;
       state.loud = 0; state.silent = 0; state.speaking = false;
       return;
@@ -422,7 +428,12 @@
       const data = await res.json();
       const ms = Math.round(performance.now() - t0);
       const raw = (data.text || "").trim();
-      const text = (raw.match(/[\p{L}\p{N}]/gu) || []).length >= 3 ? raw : "";
+      // Short Japanese answers are two characters - 「はい」, 「うん」 - and a flat
+      // >= 3 rule threw them away silently, which reads exactly like "she ignored me".
+      // Keep the higher bar for Latin, where 1-2 characters is usually ASR noise.
+      const letters = (raw.match(/[\p{L}\p{N}]/gu) || []).length;
+      const latinOnly = /^[\p{Script=Latin}\p{N}\p{P}\s]+$/u.test(raw);
+      const text = letters >= (latinOnly ? 2 : 1) ? raw : "";
       state.heard.push({ text: raw, ms, seconds: captured.seconds, rms: captured.rms, peak: captured.peak });
       say(`heard (${ms} ms, ${captured.seconds}s, rms ${captured.rms}, peak ${captured.peak}, gain x${captured.gain}): ${raw || "<nothing>"}`);
       announce({ heard: text, ms, captured });
