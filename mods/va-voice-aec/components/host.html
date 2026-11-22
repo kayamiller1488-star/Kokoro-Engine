@@ -57,7 +57,7 @@
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
-    win: [], forcedThreshold: 0, released: 0, bargeIn: false,
+    win: [], forcedThreshold: 0, released: 0, bargeIn: false, playbackStartedAt: 0,
     floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0,
     heard: [], spoken: 0, lastWav: null, lastWavSeconds: 0,
     maxLevel: 0, maxThreshold: 0, history: [],
@@ -70,7 +70,7 @@
   const counts = () => ({
     speechFrames: Math.max(2, Math.round(SPEECH_S * state.fps)),
     loudNeeded: Math.max(2, Math.ceil(Math.round(SPEECH_S * state.fps) / 2)),
-    bargeNeeded: Math.max(3, Math.ceil(Math.round(SPEECH_S * state.fps) / 2) + 1),
+    bargeNeeded: Math.max(6, Math.ceil(0.85 * state.fps)),
     silenceFrames: Math.max(2, Math.round(SILENCE_S * state.fps)),
     prerollFrames: Math.max(2, Math.round(PREROLL_S * state.fps)),
   });
@@ -254,9 +254,15 @@
       // the first word is not lost.
       state.roll.push(frame);
       if (state.roll.length > c.prerollFrames) state.roll.shift();
-      state.win.push(level >= threshold);
+      // Her own voice coming back through the canceller sits around 0.006-0.01;
+      // the owner's voice is 0.014+. Interrupting therefore needs a distinctly
+      // louder, longer signal than starting a turn, or she cuts herself off and
+      // transcribes her own sentence.
+      const bargeThreshold = state.forcedThreshold || Math.max(threshold * 3, 0.008);
+      const settled = state.playbackStartedAt && (Date.now() - state.playbackStartedAt) > 400;
+      state.win.push(settled && level >= bargeThreshold);
       while (state.win.length > c.speechFrames) state.win.shift();
-      if (state.win.filter(Boolean).length >= c.bargeNeeded) {
+      if (settled && state.win.filter(Boolean).length >= c.bargeNeeded) {
         say("barge-in: stopping her playback");
         interruptPlayback();
         state.speaking = true;
@@ -448,6 +454,7 @@
           src.buffer = buffer;
           src.connect(state.ctx.destination);
           state.currentSrc = src;
+          state.playbackStartedAt = Date.now();
           src.onended = () => { state.currentSrc = null; resolve(); };
           src.start();
         });
