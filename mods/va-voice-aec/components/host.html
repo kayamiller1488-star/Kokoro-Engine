@@ -112,7 +112,7 @@
   const counts = () => ({
     speechFrames: Math.max(2, Math.round(SPEECH_S * state.fps)),
     loudNeeded: Math.max(2, Math.ceil(Math.round(SPEECH_S * state.fps) / 2)),
-    bargeNeeded: Math.max(6, Math.ceil(0.85 * state.fps)),
+    bargeNeeded: Math.max(6, Math.ceil(0.5 * state.fps)),
     silenceFrames: Math.max(2, Math.round(SILENCE_S * state.fps)),
     prerollFrames: Math.max(2, Math.round(PREROLL_S * state.fps)),
   });
@@ -312,7 +312,10 @@
       // the owner's voice is 0.014+. Interrupting therefore needs a distinctly
       // louder, longer signal than starting a turn, or she cuts herself off and
       // transcribes her own sentence.
-      const bargeThreshold = state.forcedThreshold || Math.max(threshold * 3, 0.008);
+      // Measured on real speech: her echo with AEC on sits at 0.0008, the owner's interrupted
+      // voice peaks around 0.019 but dips constantly, so 0.008 + an unbroken 10-frame run never
+      // fired. 0.003 is ~4x the echo and 6-of-12 frames tolerates normal syllable dips.
+      const bargeThreshold = state.forcedThreshold || Math.max(threshold * 1.5, 0.003);
       const settled = state.turnStartedAt && (Date.now() - state.turnStartedAt) > 400;
       // Diagnostics for tuning: what the mic actually sees while she holds the floor.
       if (level > state.bargeMaxLevel) state.bargeMaxLevel = level;
@@ -321,7 +324,7 @@
       // while interrupting needs bargeNeeded (~10), so testing the shared one could never be
       // satisfied and barge-in silently never fired.
       state.bargeWin.push(settled && level >= bargeThreshold);
-      const bargeWindow = Math.max(c.bargeNeeded, c.speechFrames);
+      const bargeWindow = Math.max(c.bargeNeeded * 2, c.speechFrames);
       while (state.bargeWin.length > bargeWindow) state.bargeWin.shift();
       if (settled && state.bargeWin.filter(Boolean).length >= c.bargeNeeded) {
         say("barge-in: stopping her playback");
