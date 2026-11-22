@@ -19,8 +19,7 @@
         "minWidth": 800,
         "minHeight": 600,
         "center": true,
-        "decorations": false,
-        "additionalBrowserArgs": "--autoplay-policy=no-user-gesture-required --use-fake-ui-for-media-stream"
+        "decorations": false
       }
     ],
     "security": {

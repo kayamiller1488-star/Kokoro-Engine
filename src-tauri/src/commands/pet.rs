@@ -235,7 +235,6 @@ pub fn hide_bubble_window_if_open(app: &tauri::AppHandle) -> Result<(), KokoroEr
 
 #[tauri::command]
 pub async fn show_pet_window(app: tauri::AppHandle) -> Result<(), KokoroError> {
-    tracing::info!(target: "pet", "show_pet_window called");
     let windows: Vec<String> = app.webview_windows().keys().cloned().collect();
     tracing::info!(target: "pet", "available windows: {:?}", windows);
 
@@ -318,6 +317,16 @@ pub async fn show_pet_window(app: tauri::AppHandle) -> Result<(), KokoroError> {
             .shadow(false)
             .build()
             .map_err(|e: tauri::Error| KokoroError::Internal(e.to_string()))?;
+
+        // Prove the native side really exists: a registry entry with no HWND is the
+        // signature of a WebView2 window that never came up.
+        tracing::info!(
+            target: "pet",
+            "pet window built: hwnd={:?} size={:?} visible={:?}",
+            win.hwnd().ok().map(|h| h.0),
+            win.inner_size().ok(),
+            win.is_visible().ok()
+        );
 
         win.set_position(tauri::PhysicalPosition::new(x, y))
             .map_err(|e| KokoroError::Internal(e.to_string()))?;
