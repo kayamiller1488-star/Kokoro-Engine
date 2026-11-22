@@ -60,7 +60,7 @@
   const MAX_UTTERANCE_S = 15;
 
   const state = {
-    characterId: "", voice: VOICE,
+    characterId: "", voice: VOICE, micEnabled: true,
     ctx: null, mic: null, source: null, proc: null, sink: null,
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
@@ -542,6 +542,16 @@
   Kokoro.on("voice-interrupt", (payload) => {
     state.bargeIn = !!payload.enabled;
     say(`barge-in ${state.bargeIn ? "on" : "off"}`);
+  });
+  // The chat mic button is the single switch: off must actually stop capture, on
+  // must reopen it. Without this the icon said "off" while the frame kept hearing.
+  Kokoro.on("mic", (payload) => {
+    const enabled = !(payload && payload.enabled === false);
+    if (enabled === state.micEnabled) return;
+    state.micEnabled = enabled;
+    say(`mic ${enabled ? "on" : "off"}`);
+    if (enabled) { state.busy = false; void startAudio(); }
+    else { void stopAudio(); }
   });
   Kokoro.on("chat-delta", (payload) => onDelta(payload));
   Kokoro.on("chat-done", (payload) => onDone(payload));

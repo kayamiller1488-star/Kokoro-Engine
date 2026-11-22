@@ -34,6 +34,9 @@ export const APP_SETTING_KEYS = {
   visionConfig: "kokoro_vision_config",
   visionEnabled: "kokoro_vision_enabled",
   voiceInterrupt: "kokoro_voice_interrupt",
+  // The voice MOD owns the microphone while it is loaded, so this is the switch
+  // the chat mic button actually drives: on = that frame is listening.
+  modMic: "kokoro_mod_mic",
   wakeWord: "kokoro_wake_word",
   wakeWordEnabled: "kokoro_wake_word_enabled",
 } as const;

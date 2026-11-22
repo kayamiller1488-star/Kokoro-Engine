@@ -1,85 +1,85 @@
 {
-  "characterCatalog": {
-    "active": "現在のキャラクター",
-    "eyebrow": "キャラクターデッキ",
-    "title": "相棒を選ぶ",
-    "import": "キャラクターをインポート",
-    "close": "キャラクターカタログを閉じる",
-    "edit": "キャラクターを編集",
-    "duplicate": "キャラクターを複製",
-    "restoreDefault": "テンプレートの初期値に戻す",
-    "resolveConflict": "編集を保持してテンプレート更新を適用",
-    "copySuffix": "コピー",
-    "preview": "プレビュー",
-    "description": "説明",
-    "persona": "ペルソナ",
-    "greeting": "挨拶",
-    "exampleDialogue": "会話例",
-    "retry": "再試行",
-    "retrying": "再試行中…",
-    "ttsProbe": {
-      "available": "ローカル TTS が {{endpoint}} で応答しました。",
-      "unavailable": "ローカル TTS は {{endpoint}} で応答しませんでした。ブラウザー音声またはテキスト表示に切り替えます。",
-      "confirm": "{{endpoint}} のローカル TTS を利用できます。このキャラクター用に保存しますか？"
+    "characterCatalog": {
+        "active": "現在のキャラクター",
+        "eyebrow": "キャラクターデッキ",
+        "title": "相棒を選ぶ",
+        "import": "キャラクターをインポート",
+        "close": "キャラクターカタログを閉じる",
+        "edit": "キャラクターを編集",
+        "duplicate": "キャラクターを複製",
+        "restoreDefault": "テンプレートの初期値に戻す",
+        "resolveConflict": "編集を保持してテンプレート更新を適用",
+        "copySuffix": "コピー",
+        "preview": "プレビュー",
+        "description": "説明",
+        "persona": "ペルソナ",
+        "greeting": "挨拶",
+        "exampleDialogue": "会話例",
+        "retry": "再試行",
+        "retrying": "再試行中…",
+        "ttsProbe": {
+            "available": "ローカル TTS が {{endpoint}} で応答しました。",
+            "unavailable": "ローカル TTS は {{endpoint}} で応答しませんでした。ブラウザー音声またはテキスト表示に切り替えます。",
+            "confirm": "{{endpoint}} のローカル TTS を利用できます。このキャラクター用に保存しますか？"
+        },
+        "recommendations": {
+            "eyebrow": "任意の機能",
+            "title": "{{name}} の機能を追加しますか？",
+            "description": "これは提案であり、許可ではありません。有効にするまで設定は変わりません。",
+            "vision": "ビジョン",
+            "memory": "メモリ",
+            "mcp": "MCP：{{name}}",
+            "bot": "ボット：{{name}}",
+            "dismiss": "機能の提案を閉じる",
+            "notNow": "今はしない",
+            "enable": "提案された機能を有効にする",
+            "enabling": "有効化中…"
+        }
     },
-    "recommendations": {
-      "eyebrow": "任意の機能",
-      "title": "{{name}} の機能を追加しますか？",
-      "description": "これは提案であり、許可ではありません。有効にするまで設定は変わりません。",
-      "vision": "ビジョン",
-      "memory": "メモリ",
-      "mcp": "MCP：{{name}}",
-      "bot": "ボット：{{name}}",
-      "dismiss": "機能の提案を閉じる",
-      "notNow": "今はしない",
-      "enable": "提案された機能を有効にする",
-      "enabling": "有効化中…"
-    }
-  },
-  "contentLibrary": {
-    "eyebrow": "コンテンツライブラリ",
-    "title": "キャラクターとMOD",
-    "characters": "キャラクター",
-    "mods": "MOD",
-    "refresh": "レジストリを更新",
-    "loading": "レジストリを読み込み中…",
-    "emptyCharacters": "このレジストリにキャラクターパッケージはありません。",
-    "emptyMods": "このレジストリにMODパッケージはありません。",
-    "urlPlaceholder": "HTTPS URLからキャラクターパッケージをインストール",
-    "installUrl": "URLをインストール",
-    "urlWarningTitle": "外部パッケージを確認",
-    "confirmUrl": "信頼してインストール",
-    "cancel": "キャンセル",
-    "retry": "再試行",
-    "dismissError": "エラーを閉じる",
-    "compatibility": "エンジン",
-    "source": "ソース",
-    "statusAvailable": "利用可能",
-    "statusInstalled": "インストール済み",
-    "statusUpdate": "更新あり",
-    "working": "処理中",
-    "install": "インストール",
-    "update": "更新",
-    "remove": "削除",
-    "modUrlPlaceholder": "HTTPS URL から MOD をインストール",
-    "modUrlWarningTitle": "外部 MOD を確認",
-    "urlWarning": "この URL は公式レジストリの一部ではありません。検証が成功するまでパッケージは信頼されません（{{url}}）。信頼できる場合のみ続行してください。",
-    "permissionWarningTitle": "MOD の権限を確認",
-    "permissionWarning": "この MOD には実行可能コードと権限要求が含まれます。インストール前に登録情報を確認してください。",
-    "confirmPermissions": "確認してインストール",
-    "recommendations": {
-      "vision": "ビジョン",
-      "memory": "メモリ",
-      "mcp": "MCP: {{name}}",
-      "bot": "ボット: {{name}}"
+    "contentLibrary": {
+        "eyebrow": "コンテンツライブラリ",
+        "title": "キャラクターとMOD",
+        "characters": "キャラクター",
+        "mods": "MOD",
+        "refresh": "レジストリを更新",
+        "loading": "レジストリを読み込み中…",
+        "emptyCharacters": "このレジストリにキャラクターパッケージはありません。",
+        "emptyMods": "このレジストリにMODパッケージはありません。",
+        "urlPlaceholder": "HTTPS URLからキャラクターパッケージをインストール",
+        "installUrl": "URLをインストール",
+        "urlWarningTitle": "外部パッケージを確認",
+        "confirmUrl": "信頼してインストール",
+        "cancel": "キャンセル",
+        "retry": "再試行",
+        "dismissError": "エラーを閉じる",
+        "compatibility": "エンジン",
+        "source": "ソース",
+        "statusAvailable": "利用可能",
+        "statusInstalled": "インストール済み",
+        "statusUpdate": "更新あり",
+        "working": "処理中",
+        "install": "インストール",
+        "update": "更新",
+        "remove": "削除",
+        "modUrlPlaceholder": "HTTPS URL から MOD をインストール",
+        "modUrlWarningTitle": "外部 MOD を確認",
+        "urlWarning": "この URL は公式レジストリの一部ではありません。検証が成功するまでパッケージは信頼されません（{{url}}）。信頼できる場合のみ続行してください。",
+        "permissionWarningTitle": "MOD の権限を確認",
+        "permissionWarning": "この MOD には実行可能コードと権限要求が含まれます。インストール前に登録情報を確認してください。",
+        "confirmPermissions": "確認してインストール",
+        "recommendations": {
+            "vision": "ビジョン",
+            "memory": "メモリ",
+            "mcp": "MCP: {{name}}",
+            "bot": "ボット: {{name}}"
+        },
+        "errors": {
+            "incompatible": "このパッケージは現在のエンジンと互換性がありません。互換範囲を確認して別のバージョンを選んでください。",
+            "validation": "パッケージの検証に失敗しました。ソースとチェックサムを確認してから再試行してください。",
+            "download": "ダウンロードに失敗しました。接続を確認して再試行してください。",
+            "generic": "コンテンツ操作に失敗しました。パッケージを確認して再試行してください。"
+        }
     },
-    "errors": {
-      "incompatible": "このパッケージは現在のエンジンと互換性がありません。互換範囲を確認して別のバージョンを選んでください。",
-      "validation": "パッケージの検証に失敗しました。ソースとチェックサムを確認してから再試行してください。",
-      "download": "ダウンロードに失敗しました。接続を確認して再試行してください。",
-      "generic": "コンテンツ操作に失敗しました。パッケージを確認して再試行してください。"
-    }
-  },
     "common": {
         "actions": {
             "save": "保存",
@@ -657,11 +657,11 @@
                 "desc": "無効にすると、キャラクターは記憶の読み取り、書き込み、抽出、整理を行いません。再度有効にした後は、その時点以降の新しい会話だけを記録します。",
                 "disabled_hint": "記憶システムは無効です。既存の記憶は閲覧できますが、会話には注入されず、新しい記憶・要約・感情スナップショットも作成されません。"
             },
-        "tabs": {
-            "list": "リスト",
-            "timeline": "タイムライン",
-            "graph": "グラフ",
-            "dream": "夢"
+            "tabs": {
+                "list": "リスト",
+                "timeline": "タイムライン",
+                "graph": "グラフ",
+                "dream": "夢"
             },
             "search": {
                 "placeholder": "記憶を検索..."
@@ -684,107 +684,107 @@
                 "hours_ago": "{{count}}時間前",
                 "days_ago": "{{count}}日前"
             },
-        "importance": {
-            "high": "高",
-            "med": "中",
-            "low": "低"
-        },
-        "dream": {
-            "title": "夢の整理",
-            "summary": "保留 {{pending}} · 自動 {{auto}}",
-            "refresh": "更新",
-            "run_now": "今すぐ実行",
-            "running": "実行中",
-            "schedule": {
-                "title": "毎日の自動整理時刻",
-                "hint": "アプリがバックグラウンドで起動している場合、毎日 {{hour}}:00 以降に 60 秒間アイドルになると夢タスクを実行します。",
-                "saving": "保存中",
-                "saved": "保存済み"
+            "importance": {
+                "high": "高",
+                "med": "中",
+                "low": "低"
             },
-            "latest": {
-                "last": "最新: {{status}}",
-                "auto_applied": "自動適用: {{count}}",
-                "proposals": "生成提案: {{count}}"
-            },
-            "empty_proposals": "保留中の夢提案はありません。",
-            "recent_jobs": "最近のジョブ",
-            "sources": "ソース: {{ids}}",
-            "proposed_content": "提案された記憶",
-            "source_memories": "比較対象の元記憶",
-            "source_memory_id": "記憶 #{{id}}",
-            "source_missing": "元の記憶は利用できません。",
-            "entity_key": "キー: {{key}}",
-            "actions": {
-                "approve": "承認",
-                "reject": "拒否"
-            },
-            "statuses": {
-                "active": "有効",
-                "pending": "保留中",
-                "ready": "完了",
+            "dream": {
+                "title": "夢の整理",
+                "summary": "保留 {{pending}} · 自動 {{auto}}",
+                "refresh": "更新",
+                "run_now": "今すぐ実行",
                 "running": "実行中",
-                "interrupted": "中断済み",
-                "failed": "失敗",
-                "superseded": "置換済み",
-                "archived": "アーカイブ済み",
-                "auto_applied": "自動適用済み",
-                "approved": "承認済み",
-                "rejected": "拒否済み"
+                "schedule": {
+                    "title": "毎日の自動整理時刻",
+                    "hint": "アプリがバックグラウンドで起動している場合、毎日 {{hour}}:00 以降に 60 秒間アイドルになると夢タスクを実行します。",
+                    "saving": "保存中",
+                    "saved": "保存済み"
+                },
+                "latest": {
+                    "last": "最新: {{status}}",
+                    "auto_applied": "自動適用: {{count}}",
+                    "proposals": "生成提案: {{count}}"
+                },
+                "empty_proposals": "保留中の夢提案はありません。",
+                "recent_jobs": "最近のジョブ",
+                "sources": "ソース: {{ids}}",
+                "proposed_content": "提案された記憶",
+                "source_memories": "比較対象の元記憶",
+                "source_memory_id": "記憶 #{{id}}",
+                "source_missing": "元の記憶は利用できません。",
+                "entity_key": "キー: {{key}}",
+                "actions": {
+                    "approve": "承認",
+                    "reject": "拒否"
+                },
+                "statuses": {
+                    "active": "有効",
+                    "pending": "保留中",
+                    "ready": "完了",
+                    "running": "実行中",
+                    "interrupted": "中断済み",
+                    "failed": "失敗",
+                    "superseded": "置換済み",
+                    "archived": "アーカイブ済み",
+                    "auto_applied": "自動適用済み",
+                    "approved": "承認済み",
+                    "rejected": "拒否済み"
+                },
+                "job_triggers": {
+                    "manual": "手動",
+                    "daily_idle": "毎日の自動整理"
+                },
+                "proposal_types": {
+                    "conflict_review": "競合レビュー",
+                    "semantic_review": "類似レビュー",
+                    "canonical_duplicate": "完全重複",
+                    "entity_slot_merge": "スロット統合",
+                    "llm_semantic_auto_merge": "LLM 自動統合",
+                    "llm_conflict_review": "LLM 競合レビュー",
+                    "llm_semantic_review": "LLM 統合レビュー",
+                    "llm_discovery_review": "LLM 夢発見",
+                    "llm_discovery_conflict_review": "LLM 夢の競合",
+                    "llm_discovery_update_review": "LLM 夢の更新",
+                    "semantic_auto_merge": "意味的自動統合"
+                },
+                "proposal_titles": {
+                    "conflict_review": "競合している可能性のある記憶を確認",
+                    "semantic_review": "類似した記憶を確認",
+                    "canonical_duplicate": "完全重複した記憶を統合しました",
+                    "entity_slot_merge": "重複スロットの記憶を統合しました",
+                    "llm_semantic_auto_merge": "LLM が確認した記憶を統合しました",
+                    "llm_conflict_review": "LLM が検出した記憶の競合を確認",
+                    "llm_semantic_review": "LLM が提案した記憶統合を確認",
+                    "llm_discovery_review": "LLM の夢が見つけた記憶関係を確認",
+                    "llm_discovery_conflict_review": "LLM の夢が見つけた記憶の競合を確認",
+                    "llm_discovery_update_review": "LLM の夢が見つけた記憶の更新を確認",
+                    "semantic_auto_merge": "非常に類似した記憶を統合しました"
+                },
+                "proposal_rationales": {
+                    "conflict_review": "新しい記憶が既存の有効な記憶と矛盾している可能性があります。",
+                    "semantic_review": "これらの記憶は意味的に似ていますが、自動統合のしきい値には届いていません。",
+                    "canonical_duplicate": "Dream Light が重複した正規化ハッシュを検出しました。",
+                    "entity_slot_merge": "Dream REM が同じ構造化スロットに複数の有効な記憶を検出しました。",
+                    "llm_semantic_auto_merge": "LLM がこれらの記憶を安全に統合できると確認しました。",
+                    "llm_conflict_review": "LLM が矛盾の可能性を検出しました。",
+                    "llm_semantic_review": "LLM がこれらの類似記憶の確認を提案しました。",
+                    "llm_discovery_review": "LLM の夢が、これらの記憶の間に見えにくい関係を見つけました。",
+                    "llm_discovery_conflict_review": "LLM の夢が、これらの記憶の間に見えにくい競合の可能性を見つけました。",
+                    "llm_discovery_update_review": "LLM の夢が、これらの記憶の間に見えにくい更新関係を見つけました。",
+                    "semantic_auto_merge": "Dream Deep が高信頼度の意味的重複を検出しました。"
+                },
+                "proposal_impacts": {
+                    "conflict_review": "古い記憶を無効化または置換する前に手動確認が必要です。",
+                    "semantic_review": "どちらかの記憶を置き換える前に手動確認が必要です。",
+                    "auto_merged": "重複した有効な記憶を自動統合し、元の行は置換済みとしてマークしました。",
+                    "llm_conflict_review": "有効な記憶を変更する前に手動確認が必要です。",
+                    "llm_semantic_review": "信頼度が自動適用しきい値を下回ったため、手動確認が必要です。",
+                    "llm_discovery_review": "この関係は決定的な類似度ではなく LLM の夢によって発見されたため、手動確認が必要です。"
+                }
             },
-            "job_triggers": {
-                "manual": "手動",
-                "daily_idle": "毎日の自動整理"
-            },
-            "proposal_types": {
-                "conflict_review": "競合レビュー",
-                "semantic_review": "類似レビュー",
-                "canonical_duplicate": "完全重複",
-                "entity_slot_merge": "スロット統合",
-                "llm_semantic_auto_merge": "LLM 自動統合",
-                "llm_conflict_review": "LLM 競合レビュー",
-                "llm_semantic_review": "LLM 統合レビュー",
-                "llm_discovery_review": "LLM 夢発見",
-                "llm_discovery_conflict_review": "LLM 夢の競合",
-                "llm_discovery_update_review": "LLM 夢の更新",
-                "semantic_auto_merge": "意味的自動統合"
-            },
-            "proposal_titles": {
-                "conflict_review": "競合している可能性のある記憶を確認",
-                "semantic_review": "類似した記憶を確認",
-                "canonical_duplicate": "完全重複した記憶を統合しました",
-                "entity_slot_merge": "重複スロットの記憶を統合しました",
-                "llm_semantic_auto_merge": "LLM が確認した記憶を統合しました",
-                "llm_conflict_review": "LLM が検出した記憶の競合を確認",
-                "llm_semantic_review": "LLM が提案した記憶統合を確認",
-                "llm_discovery_review": "LLM の夢が見つけた記憶関係を確認",
-                "llm_discovery_conflict_review": "LLM の夢が見つけた記憶の競合を確認",
-                "llm_discovery_update_review": "LLM の夢が見つけた記憶の更新を確認",
-                "semantic_auto_merge": "非常に類似した記憶を統合しました"
-            },
-            "proposal_rationales": {
-                "conflict_review": "新しい記憶が既存の有効な記憶と矛盾している可能性があります。",
-                "semantic_review": "これらの記憶は意味的に似ていますが、自動統合のしきい値には届いていません。",
-                "canonical_duplicate": "Dream Light が重複した正規化ハッシュを検出しました。",
-                "entity_slot_merge": "Dream REM が同じ構造化スロットに複数の有効な記憶を検出しました。",
-                "llm_semantic_auto_merge": "LLM がこれらの記憶を安全に統合できると確認しました。",
-                "llm_conflict_review": "LLM が矛盾の可能性を検出しました。",
-                "llm_semantic_review": "LLM がこれらの類似記憶の確認を提案しました。",
-                "llm_discovery_review": "LLM の夢が、これらの記憶の間に見えにくい関係を見つけました。",
-                "llm_discovery_conflict_review": "LLM の夢が、これらの記憶の間に見えにくい競合の可能性を見つけました。",
-                "llm_discovery_update_review": "LLM の夢が、これらの記憶の間に見えにくい更新関係を見つけました。",
-                "semantic_auto_merge": "Dream Deep が高信頼度の意味的重複を検出しました。"
-            },
-            "proposal_impacts": {
-                "conflict_review": "古い記憶を無効化または置換する前に手動確認が必要です。",
-                "semantic_review": "どちらかの記憶を置き換える前に手動確認が必要です。",
-                "auto_merged": "重複した有効な記憶を自動統合し、元の行は置換済みとしてマークしました。",
-                "llm_conflict_review": "有効な記憶を変更する前に手動確認が必要です。",
-                "llm_semantic_review": "信頼度が自動適用しきい値を下回ったため、手動確認が必要です。",
-                "llm_discovery_review": "この関係は決定的な類似度ではなく LLM の夢によって発見されたため、手動確認が必要です。"
-            }
-        },
-        "upgrade": {
-            "title": "記憶アクティビティ",
+            "upgrade": {
+                "title": "記憶アクティビティ",
                 "loading": "メモリテレメトリを読み込み中...",
                 "write_events": "書き込みイベント",
                 "retrieval_logs": "検索ログ",
@@ -1181,10 +1181,12 @@
                 "transcribing": "変換中...",
                 "title": {
                     "idle": "音声入力 (VAD)",
-                    "listening": "聞き取り中... クリックで停止",
+                    "listening": "聞き取り中 — クリックで停止",
                     "speaking": "発話中...",
-                    "transcribing": "変換中..."
-                }
+                    "transcribing": "変換中...",
+                    "off": "マイクはオフ — クリックで聞き取り開始"
+                },
+                "off": "マイクはオフ — クリックで聞き取り開始"
             },
             "drop_image_title": "ドロップして画像をアップロード",
             "drop_image_hint": "PNG, JPG, WebP に対応（最大 5MB）"
@@ -1393,13 +1395,70 @@
     },
     "onboarding": {
         "workflow": {
-            "eyebrow": "最初の返信", "resume_title": "続きから再開", "resume_description": "選択内容は保存されています。準備ができたら再開できます。", "progress": "オンボーディングの進捗", "language_label": "表示言語", "saved_hint": "言語、キャラクター、プロバイダーの選択は保持されます。", "keep_primary_surface": "Live2D とチャットは表示されたままです", "dismiss": "保存して閉じる", "resume": "設定を再開", "retry": "再試行", "testing": "テスト中", "test_connection": "接続をテスト", "connection_title": "接続を確認", "connection_description": "プロバイダーが応答できるか安全なリクエストで確認します。", "connection_success": "接続は正常です。", "chat_description": "メッセージを送り、キャラクターから返信を受け取ります。最初の成功した返信で完了します。", "chat_placeholder": "こんにちは…", "send": "送信",
-            "steps": { "language": "言語", "character": "キャラクター", "provider": "プロバイダー", "connection-test": "接続", "chat": "最初のチャット" },
-            "titles": { "language": "言語を選択", "character": "キャラクターを選択", "provider": "プロバイダーを接続", "connection-test": "接続を確認", "chat": "最初のメッセージを送信" },
-            "descriptions": { "language": "使いやすい表示言語を選択します。", "character": "最初に会いたいキャラクターを選びます。", "provider": "返信に必要なエンドポイント、モデル、キーだけを設定します。", "connection-test": "チャット前にプロバイダーの応答を確認します。", "chat": "成功した返信を一度受け取れば設定完了です。" },
-            "provider": { "custom": "カスタムエンドポイント", "provider_type": "プロバイダー", "openai": "OpenAI 互換", "ollama": "Ollama（ローカル）", "preset": "プリセット", "endpoint": "エンドポイント", "api_key": "API キー", "model": "モデル", "discover": "モデルを検出", "discovering": "検出中", "testing": "テスト中", "test": "接続をテスト", "test_success": "接続テストに成功", "save": "プロバイダーを保存", "saving": "保存中" },
+            "eyebrow": "最初の返信",
+            "resume_title": "続きから再開",
+            "resume_description": "選択内容は保存されています。準備ができたら再開できます。",
+            "progress": "オンボーディングの進捗",
+            "language_label": "表示言語",
+            "saved_hint": "言語、キャラクター、プロバイダーの選択は保持されます。",
+            "keep_primary_surface": "Live2D とチャットは表示されたままです",
+            "dismiss": "保存して閉じる",
+            "resume": "設定を再開",
+            "retry": "再試行",
+            "testing": "テスト中",
+            "test_connection": "接続をテスト",
+            "connection_title": "接続を確認",
+            "connection_description": "プロバイダーが応答できるか安全なリクエストで確認します。",
+            "connection_success": "接続は正常です。",
+            "chat_description": "メッセージを送り、キャラクターから返信を受け取ります。最初の成功した返信で完了します。",
+            "chat_placeholder": "こんにちは…",
+            "send": "送信",
+            "steps": {
+                "language": "言語",
+                "character": "キャラクター",
+                "provider": "プロバイダー",
+                "connection-test": "接続",
+                "chat": "最初のチャット"
+            },
+            "titles": {
+                "language": "言語を選択",
+                "character": "キャラクターを選択",
+                "provider": "プロバイダーを接続",
+                "connection-test": "接続を確認",
+                "chat": "最初のメッセージを送信"
+            },
+            "descriptions": {
+                "language": "使いやすい表示言語を選択します。",
+                "character": "最初に会いたいキャラクターを選びます。",
+                "provider": "返信に必要なエンドポイント、モデル、キーだけを設定します。",
+                "connection-test": "チャット前にプロバイダーの応答を確認します。",
+                "chat": "成功した返信を一度受け取れば設定完了です。"
+            },
+            "provider": {
+                "custom": "カスタムエンドポイント",
+                "provider_type": "プロバイダー",
+                "openai": "OpenAI 互換",
+                "ollama": "Ollama（ローカル）",
+                "preset": "プリセット",
+                "endpoint": "エンドポイント",
+                "api_key": "API キー",
+                "model": "モデル",
+                "discover": "モデルを検出",
+                "discovering": "検出中",
+                "testing": "テスト中",
+                "test": "接続をテスト",
+                "test_success": "接続テストに成功",
+                "save": "プロバイダーを保存",
+                "saving": "保存中"
+            },
             "edit_provider": "プロバイダーを編集",
-            "errors": { "provider_save": "プロバイダーを保存できません。エンドポイント、モデル、キーを確認して再試行してください。", "character_activate": "キャラクターを有効化できません。パッケージを確認して再試行してください。", "connection_failed": "プロバイダーに接続できません。エンドポイント、モデル、キーを確認して再試行してください。", "chat_failed": "メッセージを送信できません。接続を確認して再試行してください。", "model_discovery": "このプロバイダーからモデルを取得できませんでした。エンドポイントとキーを確認して再試行してください。" }
+            "errors": {
+                "provider_save": "プロバイダーを保存できません。エンドポイント、モデル、キーを確認して再試行してください。",
+                "character_activate": "キャラクターを有効化できません。パッケージを確認して再試行してください。",
+                "connection_failed": "プロバイダーに接続できません。エンドポイント、モデル、キーを確認して再試行してください。",
+                "chat_failed": "メッセージを送信できません。接続を確認して再試行してください。",
+                "model_discovery": "このプロバイダーからモデルを取得できませんでした。エンドポイントとキーを確認して再試行してください。"
+            }
         },
         "title": "クイックガイド",
         "dismiss": "ガイドを終了",

@@ -1,85 +1,85 @@
 {
-  "characterCatalog": {
-    "active": "현재 캐릭터",
-    "eyebrow": "캐릭터 덱",
-    "title": "동료 선택",
-    "import": "캐릭터 가져오기",
-    "close": "캐릭터 카탈로그 닫기",
-    "edit": "캐릭터 편집",
-    "duplicate": "캐릭터 복제",
-    "restoreDefault": "템플릿 기본값 복원",
-    "resolveConflict": "내 편집을 유지하고 템플릿 업데이트 적용",
-    "copySuffix": "복사본",
-    "preview": "미리 보기",
-    "description": "설명",
-    "persona": "페르소나",
-    "greeting": "인사말",
-    "exampleDialogue": "대화 예시",
-    "retry": "다시 시도",
-    "retrying": "다시 시도 중…",
-    "ttsProbe": {
-      "available": "로컬 TTS가 {{endpoint}}에서 응답했습니다.",
-      "unavailable": "로컬 TTS가 {{endpoint}}에서 응답하지 않았습니다. 브라우저 음성 또는 텍스트로 전환합니다.",
-      "confirm": "{{endpoint}}의 로컬 TTS를 사용할 수 있습니다. 이 캐릭터용으로 저장할까요?"
+    "characterCatalog": {
+        "active": "현재 캐릭터",
+        "eyebrow": "캐릭터 덱",
+        "title": "동료 선택",
+        "import": "캐릭터 가져오기",
+        "close": "캐릭터 카탈로그 닫기",
+        "edit": "캐릭터 편집",
+        "duplicate": "캐릭터 복제",
+        "restoreDefault": "템플릿 기본값 복원",
+        "resolveConflict": "내 편집을 유지하고 템플릿 업데이트 적용",
+        "copySuffix": "복사본",
+        "preview": "미리 보기",
+        "description": "설명",
+        "persona": "페르소나",
+        "greeting": "인사말",
+        "exampleDialogue": "대화 예시",
+        "retry": "다시 시도",
+        "retrying": "다시 시도 중…",
+        "ttsProbe": {
+            "available": "로컬 TTS가 {{endpoint}}에서 응답했습니다.",
+            "unavailable": "로컬 TTS가 {{endpoint}}에서 응답하지 않았습니다. 브라우저 음성 또는 텍스트로 전환합니다.",
+            "confirm": "{{endpoint}}의 로컬 TTS를 사용할 수 있습니다. 이 캐릭터용으로 저장할까요?"
+        },
+        "recommendations": {
+            "eyebrow": "선택 기능",
+            "title": "{{name}}의 기능을 확장할까요?",
+            "description": "이는 제안일 뿐 권한이 아닙니다. 활성화를 선택하기 전에는 설정이 바뀌지 않습니다.",
+            "vision": "비전",
+            "memory": "메모리",
+            "mcp": "MCP: {{name}}",
+            "bot": "봇: {{name}}",
+            "dismiss": "기능 제안 닫기",
+            "notNow": "나중에",
+            "enable": "제안된 기능 활성화",
+            "enabling": "활성화 중…"
+        }
     },
-    "recommendations": {
-      "eyebrow": "선택 기능",
-      "title": "{{name}}의 기능을 확장할까요?",
-      "description": "이는 제안일 뿐 권한이 아닙니다. 활성화를 선택하기 전에는 설정이 바뀌지 않습니다.",
-      "vision": "비전",
-      "memory": "메모리",
-      "mcp": "MCP: {{name}}",
-      "bot": "봇: {{name}}",
-      "dismiss": "기능 제안 닫기",
-      "notNow": "나중에",
-      "enable": "제안된 기능 활성화",
-      "enabling": "활성화 중…"
-    }
-  },
-  "contentLibrary": {
-    "eyebrow": "콘텐츠 라이브러리",
-    "title": "캐릭터 및 MOD",
-    "characters": "캐릭터",
-    "mods": "MOD",
-    "refresh": "레지스트리 새로 고침",
-    "loading": "레지스트리 로드 중…",
-    "emptyCharacters": "이 레지스트리에 캐릭터 패키지가 없습니다.",
-    "emptyMods": "이 레지스트리에 MOD 패키지가 없습니다.",
-    "urlPlaceholder": "HTTPS URL에서 캐릭터 패키지 설치",
-    "installUrl": "URL 설치",
-    "urlWarningTitle": "외부 패키지 검토",
-    "confirmUrl": "신뢰하고 설치",
-    "cancel": "취소",
-    "retry": "재시도",
-    "dismissError": "오류 닫기",
-    "compatibility": "엔진",
-    "source": "소스",
-    "statusAvailable": "사용 가능",
-    "statusInstalled": "설치됨",
-    "statusUpdate": "업데이트 가능",
-    "working": "처리 중",
-    "install": "설치",
-    "update": "업데이트",
-    "remove": "제거",
-    "modUrlPlaceholder": "HTTPS URL에서 MOD 설치",
-    "modUrlWarningTitle": "외부 MOD 검토",
-    "urlWarning": "이 URL은 공식 레지스트리에 속하지 않습니다. 검증이 완료될 때까지 패키지는 신뢰되지 않습니다({{url}}). 출처를 신뢰할 때만 계속하세요.",
-    "permissionWarningTitle": "MOD 권한 검토",
-    "permissionWarning": "이 MOD에는 실행 가능한 코드와 권한 요청이 포함되어 있습니다. 설치 전에 레지스트리 항목을 검토하세요.",
-    "confirmPermissions": "검토 후 설치",
-    "recommendations": {
-      "vision": "비전",
-      "memory": "메모리",
-      "mcp": "MCP: {{name}}",
-      "bot": "봇: {{name}}"
+    "contentLibrary": {
+        "eyebrow": "콘텐츠 라이브러리",
+        "title": "캐릭터 및 MOD",
+        "characters": "캐릭터",
+        "mods": "MOD",
+        "refresh": "레지스트리 새로 고침",
+        "loading": "레지스트리 로드 중…",
+        "emptyCharacters": "이 레지스트리에 캐릭터 패키지가 없습니다.",
+        "emptyMods": "이 레지스트리에 MOD 패키지가 없습니다.",
+        "urlPlaceholder": "HTTPS URL에서 캐릭터 패키지 설치",
+        "installUrl": "URL 설치",
+        "urlWarningTitle": "외부 패키지 검토",
+        "confirmUrl": "신뢰하고 설치",
+        "cancel": "취소",
+        "retry": "재시도",
+        "dismissError": "오류 닫기",
+        "compatibility": "엔진",
+        "source": "소스",
+        "statusAvailable": "사용 가능",
+        "statusInstalled": "설치됨",
+        "statusUpdate": "업데이트 가능",
+        "working": "처리 중",
+        "install": "설치",
+        "update": "업데이트",
+        "remove": "제거",
+        "modUrlPlaceholder": "HTTPS URL에서 MOD 설치",
+        "modUrlWarningTitle": "외부 MOD 검토",
+        "urlWarning": "이 URL은 공식 레지스트리에 속하지 않습니다. 검증이 완료될 때까지 패키지는 신뢰되지 않습니다({{url}}). 출처를 신뢰할 때만 계속하세요.",
+        "permissionWarningTitle": "MOD 권한 검토",
+        "permissionWarning": "이 MOD에는 실행 가능한 코드와 권한 요청이 포함되어 있습니다. 설치 전에 레지스트리 항목을 검토하세요.",
+        "confirmPermissions": "검토 후 설치",
+        "recommendations": {
+            "vision": "비전",
+            "memory": "메모리",
+            "mcp": "MCP: {{name}}",
+            "bot": "봇: {{name}}"
+        },
+        "errors": {
+            "incompatible": "이 패키지는 현재 엔진과 호환되지 않습니다. 호환 범위를 확인하고 다른 버전을 선택하세요.",
+            "validation": "패키지 검증에 실패했습니다. 소스와 체크섬을 확인한 후 다시 시도하세요.",
+            "download": "다운로드에 실패했습니다. 연결을 확인한 후 다시 시도하세요.",
+            "generic": "콘텐츠 작업에 실패했습니다. 패키지를 확인한 후 다시 시도하세요."
+        }
     },
-    "errors": {
-      "incompatible": "이 패키지는 현재 엔진과 호환되지 않습니다. 호환 범위를 확인하고 다른 버전을 선택하세요.",
-      "validation": "패키지 검증에 실패했습니다. 소스와 체크섬을 확인한 후 다시 시도하세요.",
-      "download": "다운로드에 실패했습니다. 연결을 확인한 후 다시 시도하세요.",
-      "generic": "콘텐츠 작업에 실패했습니다. 패키지를 확인한 후 다시 시도하세요."
-    }
-  },
     "common": {
         "actions": {
             "save": "저장",
@@ -657,11 +657,11 @@
                 "desc": "비활성화하면 캐릭터가 기억을 읽거나, 쓰거나, 추출하거나, 정리하지 않습니다. 다시 활성화한 뒤에는 그 이후의 새 대화만 기록합니다.",
                 "disabled_hint": "기억 시스템이 비활성화되었습니다. 기존 기억은 계속 볼 수 있지만 대화에 주입되지 않으며, 새로운 기억·요약·감정 스냅샷도 생성되지 않습니다."
             },
-        "tabs": {
-            "list": "목록",
-            "timeline": "타임라인",
-            "graph": "그래프",
-            "dream": "꿈"
+            "tabs": {
+                "list": "목록",
+                "timeline": "타임라인",
+                "graph": "그래프",
+                "dream": "꿈"
             },
             "search": {
                 "placeholder": "기억 검색..."
@@ -684,107 +684,107 @@
                 "hours_ago": "{{count}}시간 전",
                 "days_ago": "{{count}}일 전"
             },
-        "importance": {
-            "high": "높음",
-            "med": "중간",
-            "low": "낮음"
-        },
-        "dream": {
-            "title": "꿈 정리",
-            "summary": "대기 {{pending}} · 자동 {{auto}}",
-            "refresh": "새로고침",
-            "run_now": "지금 실행",
-            "running": "실행 중",
-            "schedule": {
-                "title": "일일 자동 정리 시간",
-                "hint": "앱이 백그라운드에서 실행 중이면 매일 {{hour}}:00 이후 60초 동안 유휴 상태일 때 꿈 작업을 실행합니다.",
-                "saving": "저장 중",
-                "saved": "저장됨"
+            "importance": {
+                "high": "높음",
+                "med": "중간",
+                "low": "낮음"
             },
-            "latest": {
-                "last": "최근: {{status}}",
-                "auto_applied": "자동 적용: {{count}}",
-                "proposals": "생성된 제안: {{count}}"
-            },
-            "empty_proposals": "대기 중인 꿈 제안이 없습니다.",
-            "recent_jobs": "최근 작업",
-            "sources": "출처: {{ids}}",
-            "proposed_content": "제안된 기억",
-            "source_memories": "비교한 원본 기억",
-            "source_memory_id": "기억 #{{id}}",
-            "source_missing": "원본 기억을 더 이상 사용할 수 없습니다.",
-            "entity_key": "키: {{key}}",
-            "actions": {
-                "approve": "승인",
-                "reject": "거부"
-            },
-            "statuses": {
-                "active": "활성",
-                "pending": "대기 중",
-                "ready": "완료",
+            "dream": {
+                "title": "꿈 정리",
+                "summary": "대기 {{pending}} · 자동 {{auto}}",
+                "refresh": "새로고침",
+                "run_now": "지금 실행",
                 "running": "실행 중",
-                "interrupted": "중단됨",
-                "failed": "실패",
-                "superseded": "대체됨",
-                "archived": "보관됨",
-                "auto_applied": "자동 적용됨",
-                "approved": "승인됨",
-                "rejected": "거부됨"
+                "schedule": {
+                    "title": "일일 자동 정리 시간",
+                    "hint": "앱이 백그라운드에서 실행 중이면 매일 {{hour}}:00 이후 60초 동안 유휴 상태일 때 꿈 작업을 실행합니다.",
+                    "saving": "저장 중",
+                    "saved": "저장됨"
+                },
+                "latest": {
+                    "last": "최근: {{status}}",
+                    "auto_applied": "자동 적용: {{count}}",
+                    "proposals": "생성된 제안: {{count}}"
+                },
+                "empty_proposals": "대기 중인 꿈 제안이 없습니다.",
+                "recent_jobs": "최근 작업",
+                "sources": "출처: {{ids}}",
+                "proposed_content": "제안된 기억",
+                "source_memories": "비교한 원본 기억",
+                "source_memory_id": "기억 #{{id}}",
+                "source_missing": "원본 기억을 더 이상 사용할 수 없습니다.",
+                "entity_key": "키: {{key}}",
+                "actions": {
+                    "approve": "승인",
+                    "reject": "거부"
+                },
+                "statuses": {
+                    "active": "활성",
+                    "pending": "대기 중",
+                    "ready": "완료",
+                    "running": "실행 중",
+                    "interrupted": "중단됨",
+                    "failed": "실패",
+                    "superseded": "대체됨",
+                    "archived": "보관됨",
+                    "auto_applied": "자동 적용됨",
+                    "approved": "승인됨",
+                    "rejected": "거부됨"
+                },
+                "job_triggers": {
+                    "manual": "수동",
+                    "daily_idle": "일일 유휴"
+                },
+                "proposal_types": {
+                    "conflict_review": "충돌 검토",
+                    "semantic_review": "유사도 검토",
+                    "canonical_duplicate": "정확한 중복",
+                    "entity_slot_merge": "슬롯 병합",
+                    "llm_semantic_auto_merge": "LLM 자동 병합",
+                    "llm_conflict_review": "LLM 충돌 검토",
+                    "llm_semantic_review": "LLM 병합 검토",
+                    "llm_discovery_review": "LLM 꿈 발견",
+                    "llm_discovery_conflict_review": "LLM 꿈 충돌",
+                    "llm_discovery_update_review": "LLM 꿈 업데이트",
+                    "semantic_auto_merge": "의미 자동 병합"
+                },
+                "proposal_titles": {
+                    "conflict_review": "가능한 기억 충돌 검토",
+                    "semantic_review": "유사한 기억 검토",
+                    "canonical_duplicate": "정확히 중복된 기억을 병합했습니다",
+                    "entity_slot_merge": "중복 슬롯 기억을 병합했습니다",
+                    "llm_semantic_auto_merge": "LLM이 확인한 기억을 병합했습니다",
+                    "llm_conflict_review": "LLM이 감지한 기억 충돌 검토",
+                    "llm_semantic_review": "LLM의 기억 병합 제안 검토",
+                    "llm_discovery_review": "LLM 꿈이 발견한 기억 관계 검토",
+                    "llm_discovery_conflict_review": "LLM 꿈이 발견한 기억 충돌 검토",
+                    "llm_discovery_update_review": "LLM 꿈이 발견한 기억 업데이트 검토",
+                    "semantic_auto_merge": "매우 유사한 기억을 병합했습니다"
+                },
+                "proposal_rationales": {
+                    "conflict_review": "새 기억이 기존 활성 기억과 모순되는 것으로 보입니다.",
+                    "semantic_review": "이 기억들은 의미적으로 유사하지만 자동 병합 임계값보다 낮습니다.",
+                    "canonical_duplicate": "Dream Light가 중복된 정규화 해시를 발견했습니다.",
+                    "entity_slot_merge": "Dream REM이 같은 구조화 슬롯에 여러 활성 기억을 발견했습니다.",
+                    "llm_semantic_auto_merge": "LLM이 이 기억들을 안전하게 병합할 수 있다고 확인했습니다.",
+                    "llm_conflict_review": "LLM이 가능한 모순을 감지했습니다.",
+                    "llm_semantic_review": "LLM이 이 유사한 기억들의 검토를 제안했습니다.",
+                    "llm_discovery_review": "LLM 꿈이 이 기억들 사이의 비명시적인 관계를 발견했습니다.",
+                    "llm_discovery_conflict_review": "LLM 꿈이 이 기억들 사이의 비명시적인 충돌 가능성을 발견했습니다.",
+                    "llm_discovery_update_review": "LLM 꿈이 이 기억들 사이의 비명시적인 업데이트 관계를 발견했습니다.",
+                    "semantic_auto_merge": "Dream Deep이 높은 신뢰도의 의미 중복을 발견했습니다."
+                },
+                "proposal_impacts": {
+                    "conflict_review": "이전 기억을 무효화하거나 교체하기 전에 수동 검토가 필요합니다.",
+                    "semantic_review": "어느 한 기억을 대체하기 전에 수동 검토가 필요합니다.",
+                    "auto_merged": "중복된 활성 기억을 자동 병합했고, 원본 행은 대체됨으로 표시했습니다.",
+                    "llm_conflict_review": "활성 기억을 변경하기 전에 수동 검토가 필요합니다.",
+                    "llm_semantic_review": "신뢰도가 자동 적용 임계값보다 낮아 수동 검토가 필요합니다.",
+                    "llm_discovery_review": "이 관계는 결정적 유사도가 아니라 LLM 꿈으로 발견되었으므로 수동 검토가 필요합니다."
+                }
             },
-            "job_triggers": {
-                "manual": "수동",
-                "daily_idle": "일일 유휴"
-            },
-            "proposal_types": {
-                "conflict_review": "충돌 검토",
-                "semantic_review": "유사도 검토",
-                "canonical_duplicate": "정확한 중복",
-                "entity_slot_merge": "슬롯 병합",
-                "llm_semantic_auto_merge": "LLM 자동 병합",
-                "llm_conflict_review": "LLM 충돌 검토",
-                "llm_semantic_review": "LLM 병합 검토",
-                "llm_discovery_review": "LLM 꿈 발견",
-                "llm_discovery_conflict_review": "LLM 꿈 충돌",
-                "llm_discovery_update_review": "LLM 꿈 업데이트",
-                "semantic_auto_merge": "의미 자동 병합"
-            },
-            "proposal_titles": {
-                "conflict_review": "가능한 기억 충돌 검토",
-                "semantic_review": "유사한 기억 검토",
-                "canonical_duplicate": "정확히 중복된 기억을 병합했습니다",
-                "entity_slot_merge": "중복 슬롯 기억을 병합했습니다",
-                "llm_semantic_auto_merge": "LLM이 확인한 기억을 병합했습니다",
-                "llm_conflict_review": "LLM이 감지한 기억 충돌 검토",
-                "llm_semantic_review": "LLM의 기억 병합 제안 검토",
-                "llm_discovery_review": "LLM 꿈이 발견한 기억 관계 검토",
-                "llm_discovery_conflict_review": "LLM 꿈이 발견한 기억 충돌 검토",
-                "llm_discovery_update_review": "LLM 꿈이 발견한 기억 업데이트 검토",
-                "semantic_auto_merge": "매우 유사한 기억을 병합했습니다"
-            },
-            "proposal_rationales": {
-                "conflict_review": "새 기억이 기존 활성 기억과 모순되는 것으로 보입니다.",
-                "semantic_review": "이 기억들은 의미적으로 유사하지만 자동 병합 임계값보다 낮습니다.",
-                "canonical_duplicate": "Dream Light가 중복된 정규화 해시를 발견했습니다.",
-                "entity_slot_merge": "Dream REM이 같은 구조화 슬롯에 여러 활성 기억을 발견했습니다.",
-                "llm_semantic_auto_merge": "LLM이 이 기억들을 안전하게 병합할 수 있다고 확인했습니다.",
-                "llm_conflict_review": "LLM이 가능한 모순을 감지했습니다.",
-                "llm_semantic_review": "LLM이 이 유사한 기억들의 검토를 제안했습니다.",
-                "llm_discovery_review": "LLM 꿈이 이 기억들 사이의 비명시적인 관계를 발견했습니다.",
-                "llm_discovery_conflict_review": "LLM 꿈이 이 기억들 사이의 비명시적인 충돌 가능성을 발견했습니다.",
-                "llm_discovery_update_review": "LLM 꿈이 이 기억들 사이의 비명시적인 업데이트 관계를 발견했습니다.",
-                "semantic_auto_merge": "Dream Deep이 높은 신뢰도의 의미 중복을 발견했습니다."
-            },
-            "proposal_impacts": {
-                "conflict_review": "이전 기억을 무효화하거나 교체하기 전에 수동 검토가 필요합니다.",
-                "semantic_review": "어느 한 기억을 대체하기 전에 수동 검토가 필요합니다.",
-                "auto_merged": "중복된 활성 기억을 자동 병합했고, 원본 행은 대체됨으로 표시했습니다.",
-                "llm_conflict_review": "활성 기억을 변경하기 전에 수동 검토가 필요합니다.",
-                "llm_semantic_review": "신뢰도가 자동 적용 임계값보다 낮아 수동 검토가 필요합니다.",
-                "llm_discovery_review": "이 관계는 결정적 유사도가 아니라 LLM 꿈으로 발견되었으므로 수동 검토가 필요합니다."
-            }
-        },
-        "upgrade": {
-            "title": "메모리 활동",
+            "upgrade": {
+                "title": "메모리 활동",
                 "loading": "메모리 텔레메트리를 불러오는 중...",
                 "write_events": "쓰기 이벤트",
                 "retrieval_logs": "검색 로그",
@@ -1181,10 +1181,12 @@
                 "transcribing": "변환 중...",
                 "title": {
                     "idle": "음성 입력 (VAD)",
-                    "listening": "듣는 중... 클릭하여 중지",
+                    "listening": "듣는 중 — 클릭하여 중지",
                     "speaking": "말하는 중...",
-                    "transcribing": "변환 중..."
-                }
+                    "transcribing": "변환 중...",
+                    "off": "마이크 꺼짐 — 클릭하여 듣기 시작"
+                },
+                "off": "마이크 꺼짐 — 클릭하여 듣기 시작"
             },
             "drop_image_title": "이미지를 드롭하여 업로드",
             "drop_image_hint": "PNG, JPG, WebP 지원 (최대 5MB)"
@@ -1393,13 +1395,70 @@
     },
     "onboarding": {
         "workflow": {
-            "eyebrow": "첫 답변", "resume_title": "이어서 진행하기", "resume_description": "선택한 내용이 저장되었습니다. 준비되면 다시 시작하세요.", "progress": "온보딩 진행률", "language_label": "인터페이스 언어", "saved_hint": "언어, 캐릭터, 제공자 선택이 안전하게 보존됩니다.", "keep_primary_surface": "Live2D와 채팅은 계속 표시됩니다", "dismiss": "저장하고 닫기", "resume": "설정 계속하기", "retry": "다시 시도", "testing": "테스트 중", "test_connection": "연결 테스트", "connection_title": "연결 확인", "connection_description": "제공자가 응답할 수 있는지 안전한 요청으로 확인합니다.", "connection_success": "연결이 정상입니다.", "chat_description": "메시지를 보내 캐릭터의 답변을 받으세요. 첫 성공 답변으로 설정이 완료됩니다.", "chat_placeholder": "안녕하세요…", "send": "보내기",
-            "steps": { "language": "언어", "character": "캐릭터", "provider": "제공자", "connection-test": "연결", "chat": "첫 채팅" },
-            "titles": { "language": "언어 선택", "character": "캐릭터 선택", "provider": "제공자 연결", "connection-test": "연결 확인", "chat": "첫 메시지 보내기" },
-            "descriptions": { "language": "편안한 인터페이스 언어를 선택하세요.", "character": "먼저 만나고 싶은 캐릭터를 선택하세요.", "provider": "응답에 필요한 엔드포인트, 모델, 키만 설정합니다.", "connection-test": "채팅 전에 제공자의 응답을 확인합니다.", "chat": "성공적인 답변 한 번이면 설정이 끝납니다." },
-            "provider": { "custom": "사용자 지정 엔드포인트", "provider_type": "제공자", "openai": "OpenAI 호환", "ollama": "Ollama(로컬)", "preset": "프리셋", "endpoint": "엔드포인트", "api_key": "API 키", "model": "모델", "discover": "모델 검색", "discovering": "검색 중", "testing": "테스트 중", "test": "연결 테스트", "test_success": "연결 테스트 통과", "save": "제공자 저장", "saving": "저장 중" },
+            "eyebrow": "첫 답변",
+            "resume_title": "이어서 진행하기",
+            "resume_description": "선택한 내용이 저장되었습니다. 준비되면 다시 시작하세요.",
+            "progress": "온보딩 진행률",
+            "language_label": "인터페이스 언어",
+            "saved_hint": "언어, 캐릭터, 제공자 선택이 안전하게 보존됩니다.",
+            "keep_primary_surface": "Live2D와 채팅은 계속 표시됩니다",
+            "dismiss": "저장하고 닫기",
+            "resume": "설정 계속하기",
+            "retry": "다시 시도",
+            "testing": "테스트 중",
+            "test_connection": "연결 테스트",
+            "connection_title": "연결 확인",
+            "connection_description": "제공자가 응답할 수 있는지 안전한 요청으로 확인합니다.",
+            "connection_success": "연결이 정상입니다.",
+            "chat_description": "메시지를 보내 캐릭터의 답변을 받으세요. 첫 성공 답변으로 설정이 완료됩니다.",
+            "chat_placeholder": "안녕하세요…",
+            "send": "보내기",
+            "steps": {
+                "language": "언어",
+                "character": "캐릭터",
+                "provider": "제공자",
+                "connection-test": "연결",
+                "chat": "첫 채팅"
+            },
+            "titles": {
+                "language": "언어 선택",
+                "character": "캐릭터 선택",
+                "provider": "제공자 연결",
+                "connection-test": "연결 확인",
+                "chat": "첫 메시지 보내기"
+            },
+            "descriptions": {
+                "language": "편안한 인터페이스 언어를 선택하세요.",
+                "character": "먼저 만나고 싶은 캐릭터를 선택하세요.",
+                "provider": "응답에 필요한 엔드포인트, 모델, 키만 설정합니다.",
+                "connection-test": "채팅 전에 제공자의 응답을 확인합니다.",
+                "chat": "성공적인 답변 한 번이면 설정이 끝납니다."
+            },
+            "provider": {
+                "custom": "사용자 지정 엔드포인트",
+                "provider_type": "제공자",
+                "openai": "OpenAI 호환",
+                "ollama": "Ollama(로컬)",
+                "preset": "프리셋",
+                "endpoint": "엔드포인트",
+                "api_key": "API 키",
+                "model": "모델",
+                "discover": "모델 검색",
+                "discovering": "검색 중",
+                "testing": "테스트 중",
+                "test": "연결 테스트",
+                "test_success": "연결 테스트 통과",
+                "save": "제공자 저장",
+                "saving": "저장 중"
+            },
             "edit_provider": "제공자 편집",
-            "errors": { "provider_save": "제공자를 저장할 수 없습니다. 엔드포인트, 모델, 키를 확인하고 다시 시도하세요.", "character_activate": "캐릭터를 활성화할 수 없습니다. 캐릭터 패키지를 확인하고 다시 시도하세요.", "connection_failed": "제공자에 연결할 수 없습니다. 엔드포인트, 모델, 키를 확인하고 다시 시도하세요.", "chat_failed": "메시지를 보낼 수 없습니다. 연결을 확인하고 다시 시도하세요.", "model_discovery": "이 공급자에서 모델을 찾지 못했습니다. 엔드포인트와 키를 확인한 뒤 다시 시도하세요." }
+            "errors": {
+                "provider_save": "제공자를 저장할 수 없습니다. 엔드포인트, 모델, 키를 확인하고 다시 시도하세요.",
+                "character_activate": "캐릭터를 활성화할 수 없습니다. 캐릭터 패키지를 확인하고 다시 시도하세요.",
+                "connection_failed": "제공자에 연결할 수 없습니다. 엔드포인트, 모델, 키를 확인하고 다시 시도하세요.",
+                "chat_failed": "메시지를 보낼 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+                "model_discovery": "이 공급자에서 모델을 찾지 못했습니다. 엔드포인트와 키를 확인한 뒤 다시 시도하세요."
+            }
         },
         "title": "빠른 안내",
         "dismiss": "안내 종료",

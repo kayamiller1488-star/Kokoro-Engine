@@ -1,85 +1,85 @@
 {
-  "characterCatalog": {
-    "active": "Active character",
-    "eyebrow": "Character deck",
-    "title": "Choose your companion",
-    "import": "Import character",
-    "close": "Close character catalog",
-    "edit": "Edit character",
-    "duplicate": "Duplicate character",
-    "restoreDefault": "Restore template defaults",
-    "resolveConflict": "Keep my edits and apply template update",
-    "copySuffix": "Copy",
-    "preview": "Preview",
-    "description": "Description",
-    "persona": "Persona",
-    "greeting": "Greeting",
-    "exampleDialogue": "Example dialogue",
-    "retry": "Retry",
-    "retrying": "Retrying...",
-    "ttsProbe": {
-      "available": "Local TTS responded at {{endpoint}}.",
-      "unavailable": "Local TTS did not respond at {{endpoint}}. Browser or text fallback will be used.",
-      "confirm": "Local TTS at {{endpoint}} is reachable. Save this configured provider for this character?"
+    "characterCatalog": {
+        "active": "Active character",
+        "eyebrow": "Character deck",
+        "title": "Choose your companion",
+        "import": "Import character",
+        "close": "Close character catalog",
+        "edit": "Edit character",
+        "duplicate": "Duplicate character",
+        "restoreDefault": "Restore template defaults",
+        "resolveConflict": "Keep my edits and apply template update",
+        "copySuffix": "Copy",
+        "preview": "Preview",
+        "description": "Description",
+        "persona": "Persona",
+        "greeting": "Greeting",
+        "exampleDialogue": "Example dialogue",
+        "retry": "Retry",
+        "retrying": "Retrying...",
+        "ttsProbe": {
+            "available": "Local TTS responded at {{endpoint}}.",
+            "unavailable": "Local TTS did not respond at {{endpoint}}. Browser or text fallback will be used.",
+            "confirm": "Local TTS at {{endpoint}} is reachable. Save this configured provider for this character?"
+        },
+        "recommendations": {
+            "eyebrow": "Optional capabilities",
+            "title": "Make {{name}} more capable?",
+            "description": "These are suggestions, not permissions. Nothing changes until you choose Enable.",
+            "vision": "Vision",
+            "memory": "Memory",
+            "mcp": "MCP: {{name}}",
+            "bot": "Bot: {{name}}",
+            "dismiss": "Dismiss recommendations",
+            "notNow": "Not now",
+            "enable": "Enable selected capabilities",
+            "enabling": "Enabling..."
+        }
     },
-    "recommendations": {
-      "eyebrow": "Optional capabilities",
-      "title": "Make {{name}} more capable?",
-      "description": "These are suggestions, not permissions. Nothing changes until you choose Enable.",
-      "vision": "Vision",
-      "memory": "Memory",
-      "mcp": "MCP: {{name}}",
-      "bot": "Bot: {{name}}",
-      "dismiss": "Dismiss recommendations",
-      "notNow": "Not now",
-      "enable": "Enable selected capabilities",
-      "enabling": "Enabling..."
-    }
-  },
-  "contentLibrary": {
-    "eyebrow": "Content library",
-    "title": "Characters & MODs",
-    "characters": "Characters",
-    "mods": "MODs",
-    "refresh": "Refresh registry",
-    "loading": "Loading registry…",
-    "emptyCharacters": "No character packages in this registry.",
-    "emptyMods": "No MOD packages in this registry.",
-    "urlPlaceholder": "Install a character package from HTTPS URL",
-    "installUrl": "Install URL",
-    "urlWarningTitle": "Review external package",
-    "confirmUrl": "Trust and install",
-    "cancel": "Cancel",
-    "retry": "Retry",
-    "dismissError": "Dismiss error",
-    "compatibility": "Engine",
-    "source": "Source",
-    "statusAvailable": "available",
-    "statusInstalled": "installed",
-    "statusUpdate": "update available",
-    "working": "Working",
-    "install": "Install",
-    "update": "Update",
-    "remove": "Remove",
-    "modUrlPlaceholder": "Install a MOD from an HTTPS URL",
-    "modUrlWarningTitle": "Review external MOD",
-    "urlWarning": "This URL is not part of the official registry. The package is untrusted until validation succeeds ({{url}}). Continue only if you trust the source.",
-    "permissionWarningTitle": "Review MOD permissions",
-    "permissionWarning": "This MOD contains executable code and requests permissions. Review the registry entry before installing.",
-    "confirmPermissions": "Review and install",
-    "recommendations": {
-      "vision": "Vision",
-      "memory": "Memory",
-      "mcp": "MCP: {{name}}",
-      "bot": "Bot: {{name}}"
+    "contentLibrary": {
+        "eyebrow": "Content library",
+        "title": "Characters & MODs",
+        "characters": "Characters",
+        "mods": "MODs",
+        "refresh": "Refresh registry",
+        "loading": "Loading registry…",
+        "emptyCharacters": "No character packages in this registry.",
+        "emptyMods": "No MOD packages in this registry.",
+        "urlPlaceholder": "Install a character package from HTTPS URL",
+        "installUrl": "Install URL",
+        "urlWarningTitle": "Review external package",
+        "confirmUrl": "Trust and install",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "dismissError": "Dismiss error",
+        "compatibility": "Engine",
+        "source": "Source",
+        "statusAvailable": "available",
+        "statusInstalled": "installed",
+        "statusUpdate": "update available",
+        "working": "Working",
+        "install": "Install",
+        "update": "Update",
+        "remove": "Remove",
+        "modUrlPlaceholder": "Install a MOD from an HTTPS URL",
+        "modUrlWarningTitle": "Review external MOD",
+        "urlWarning": "This URL is not part of the official registry. The package is untrusted until validation succeeds ({{url}}). Continue only if you trust the source.",
+        "permissionWarningTitle": "Review MOD permissions",
+        "permissionWarning": "This MOD contains executable code and requests permissions. Review the registry entry before installing.",
+        "confirmPermissions": "Review and install",
+        "recommendations": {
+            "vision": "Vision",
+            "memory": "Memory",
+            "mcp": "MCP: {{name}}",
+            "bot": "Bot: {{name}}"
+        },
+        "errors": {
+            "incompatible": "This package is not compatible with the current engine. Review the compatibility range and choose another version.",
+            "validation": "Package validation failed. Check the source and checksum, then review before retrying.",
+            "download": "Download failed. Check your connection and retry.",
+            "generic": "Content operation failed. Review the package and retry."
+        }
     },
-    "errors": {
-      "incompatible": "This package is not compatible with the current engine. Review the compatibility range and choose another version.",
-      "validation": "Package validation failed. Check the source and checksum, then review before retrying.",
-      "download": "Download failed. Check your connection and retry.",
-      "generic": "Content operation failed. Review the package and retry."
-    }
-  },
     "common": {
         "actions": {
             "save": "SAVE",
@@ -666,11 +666,11 @@
                 "desc": "When disabled, the character will not read, write, extract, or consolidate memories. Re-enabling resumes from new conversations only.",
                 "disabled_hint": "Memory system is disabled. Existing memories can still be viewed, but they will not be injected into chat and no new memories, summaries, or emotion snapshots will be created."
             },
-        "tabs": {
-            "list": "List",
-            "timeline": "Timeline",
-            "graph": "Graph",
-            "dream": "Dream"
+            "tabs": {
+                "list": "List",
+                "timeline": "Timeline",
+                "graph": "Graph",
+                "dream": "Dream"
             },
             "search": {
                 "placeholder": "Search memories..."
@@ -693,107 +693,107 @@
                 "hours_ago": "{{count}}h ago",
                 "days_ago": "{{count}}d ago"
             },
-        "importance": {
-            "high": "HIGH",
-            "med": "MED",
-            "low": "LOW"
-        },
-        "dream": {
-            "title": "Dreaming",
-            "summary": "Pending {{pending}} · Auto {{auto}}",
-            "refresh": "Refresh",
-            "run_now": "Run now",
-            "running": "Running",
-            "schedule": {
-                "title": "Daily auto dream time",
-                "hint": "When the app is running in the background, the dream job starts after {{hour}}:00 once the app has been idle for 60 seconds.",
-                "saving": "Saving",
-                "saved": "Saved"
+            "importance": {
+                "high": "HIGH",
+                "med": "MED",
+                "low": "LOW"
             },
-            "latest": {
-                "last": "Last: {{status}}",
-                "auto_applied": "Auto applied: {{count}}",
-                "proposals": "Generated proposals: {{count}}"
-            },
-            "empty_proposals": "No pending dream proposals.",
-            "recent_jobs": "Recent jobs",
-            "sources": "Sources: {{ids}}",
-            "proposed_content": "Suggested memory",
-            "source_memories": "Compared source memories",
-            "source_memory_id": "Memory #{{id}}",
-            "source_missing": "Source memory is no longer available.",
-            "entity_key": "Key: {{key}}",
-            "actions": {
-                "approve": "Approve",
-                "reject": "Reject"
-            },
-            "statuses": {
-                "active": "Active",
-                "pending": "Pending",
-                "ready": "Ready",
+            "dream": {
+                "title": "Dreaming",
+                "summary": "Pending {{pending}} · Auto {{auto}}",
+                "refresh": "Refresh",
+                "run_now": "Run now",
                 "running": "Running",
-                "interrupted": "Interrupted",
-                "failed": "Failed",
-                "superseded": "Superseded",
-                "archived": "Archived",
-                "auto_applied": "Auto applied",
-                "approved": "Approved",
-                "rejected": "Rejected"
+                "schedule": {
+                    "title": "Daily auto dream time",
+                    "hint": "When the app is running in the background, the dream job starts after {{hour}}:00 once the app has been idle for 60 seconds.",
+                    "saving": "Saving",
+                    "saved": "Saved"
+                },
+                "latest": {
+                    "last": "Last: {{status}}",
+                    "auto_applied": "Auto applied: {{count}}",
+                    "proposals": "Generated proposals: {{count}}"
+                },
+                "empty_proposals": "No pending dream proposals.",
+                "recent_jobs": "Recent jobs",
+                "sources": "Sources: {{ids}}",
+                "proposed_content": "Suggested memory",
+                "source_memories": "Compared source memories",
+                "source_memory_id": "Memory #{{id}}",
+                "source_missing": "Source memory is no longer available.",
+                "entity_key": "Key: {{key}}",
+                "actions": {
+                    "approve": "Approve",
+                    "reject": "Reject"
+                },
+                "statuses": {
+                    "active": "Active",
+                    "pending": "Pending",
+                    "ready": "Ready",
+                    "running": "Running",
+                    "interrupted": "Interrupted",
+                    "failed": "Failed",
+                    "superseded": "Superseded",
+                    "archived": "Archived",
+                    "auto_applied": "Auto applied",
+                    "approved": "Approved",
+                    "rejected": "Rejected"
+                },
+                "job_triggers": {
+                    "manual": "Manual",
+                    "daily_idle": "Daily auto dream"
+                },
+                "proposal_types": {
+                    "conflict_review": "Conflict review",
+                    "semantic_review": "Similarity review",
+                    "canonical_duplicate": "Exact duplicate",
+                    "entity_slot_merge": "Slot merge",
+                    "llm_semantic_auto_merge": "LLM auto merge",
+                    "llm_conflict_review": "LLM conflict review",
+                    "llm_semantic_review": "LLM merge review",
+                    "llm_discovery_review": "LLM discovery",
+                    "llm_discovery_conflict_review": "LLM discovery conflict",
+                    "llm_discovery_update_review": "LLM discovery update",
+                    "semantic_auto_merge": "Semantic auto merge"
+                },
+                "proposal_titles": {
+                    "conflict_review": "Review possible memory conflict",
+                    "semantic_review": "Review similar memories",
+                    "canonical_duplicate": "Merged exact duplicate memories",
+                    "entity_slot_merge": "Merged duplicate slot memories",
+                    "llm_semantic_auto_merge": "Merged LLM-confirmed memories",
+                    "llm_conflict_review": "Review LLM-detected memory conflict",
+                    "llm_semantic_review": "Review LLM memory merge suggestion",
+                    "llm_discovery_review": "Review LLM-discovered memory relation",
+                    "llm_discovery_conflict_review": "Review LLM-discovered memory conflict",
+                    "llm_discovery_update_review": "Review LLM-discovered memory update",
+                    "semantic_auto_merge": "Merged highly similar memories"
+                },
+                "proposal_rationales": {
+                    "conflict_review": "A new memory appears to contradict an existing active memory.",
+                    "semantic_review": "These memories are semantically similar but below the automatic merge threshold.",
+                    "canonical_duplicate": "Dream Light found duplicate canonical hashes.",
+                    "entity_slot_merge": "Dream REM found multiple active memories for the same structured slot.",
+                    "llm_semantic_auto_merge": "LLM confirmed these memories are safely mergeable.",
+                    "llm_conflict_review": "LLM detected a possible contradiction.",
+                    "llm_semantic_review": "LLM suggested reviewing these similar memories.",
+                    "llm_discovery_review": "LLM Dream Discovery found a non-obvious relationship between these memories.",
+                    "llm_discovery_conflict_review": "LLM Dream Discovery found a non-obvious possible conflict between these memories.",
+                    "llm_discovery_update_review": "LLM Dream Discovery found a non-obvious possible update between these memories.",
+                    "semantic_auto_merge": "Dream Deep found a high-confidence semantic duplicate."
+                },
+                "proposal_impacts": {
+                    "conflict_review": "Manual review required before invalidating or replacing the older memory.",
+                    "semantic_review": "Manual review required before superseding either memory.",
+                    "auto_merged": "Auto-merged duplicate active memories; source rows were marked superseded.",
+                    "llm_conflict_review": "Manual review required before changing either active memory.",
+                    "llm_semantic_review": "Manual review required because confidence was below the auto-apply threshold.",
+                    "llm_discovery_review": "Manual review required because this relation was discovered by LLM rather than deterministic similarity."
+                }
             },
-            "job_triggers": {
-                "manual": "Manual",
-                "daily_idle": "Daily auto dream"
-            },
-            "proposal_types": {
-                "conflict_review": "Conflict review",
-                "semantic_review": "Similarity review",
-                "canonical_duplicate": "Exact duplicate",
-                "entity_slot_merge": "Slot merge",
-                "llm_semantic_auto_merge": "LLM auto merge",
-                "llm_conflict_review": "LLM conflict review",
-                "llm_semantic_review": "LLM merge review",
-                "llm_discovery_review": "LLM discovery",
-                "llm_discovery_conflict_review": "LLM discovery conflict",
-                "llm_discovery_update_review": "LLM discovery update",
-                "semantic_auto_merge": "Semantic auto merge"
-            },
-            "proposal_titles": {
-                "conflict_review": "Review possible memory conflict",
-                "semantic_review": "Review similar memories",
-                "canonical_duplicate": "Merged exact duplicate memories",
-                "entity_slot_merge": "Merged duplicate slot memories",
-                "llm_semantic_auto_merge": "Merged LLM-confirmed memories",
-                "llm_conflict_review": "Review LLM-detected memory conflict",
-                "llm_semantic_review": "Review LLM memory merge suggestion",
-                "llm_discovery_review": "Review LLM-discovered memory relation",
-                "llm_discovery_conflict_review": "Review LLM-discovered memory conflict",
-                "llm_discovery_update_review": "Review LLM-discovered memory update",
-                "semantic_auto_merge": "Merged highly similar memories"
-            },
-            "proposal_rationales": {
-                "conflict_review": "A new memory appears to contradict an existing active memory.",
-                "semantic_review": "These memories are semantically similar but below the automatic merge threshold.",
-                "canonical_duplicate": "Dream Light found duplicate canonical hashes.",
-                "entity_slot_merge": "Dream REM found multiple active memories for the same structured slot.",
-                "llm_semantic_auto_merge": "LLM confirmed these memories are safely mergeable.",
-                "llm_conflict_review": "LLM detected a possible contradiction.",
-                "llm_semantic_review": "LLM suggested reviewing these similar memories.",
-                "llm_discovery_review": "LLM Dream Discovery found a non-obvious relationship between these memories.",
-                "llm_discovery_conflict_review": "LLM Dream Discovery found a non-obvious possible conflict between these memories.",
-                "llm_discovery_update_review": "LLM Dream Discovery found a non-obvious possible update between these memories.",
-                "semantic_auto_merge": "Dream Deep found a high-confidence semantic duplicate."
-            },
-            "proposal_impacts": {
-                "conflict_review": "Manual review required before invalidating or replacing the older memory.",
-                "semantic_review": "Manual review required before superseding either memory.",
-                "auto_merged": "Auto-merged duplicate active memories; source rows were marked superseded.",
-                "llm_conflict_review": "Manual review required before changing either active memory.",
-                "llm_semantic_review": "Manual review required because confidence was below the auto-apply threshold.",
-                "llm_discovery_review": "Manual review required because this relation was discovered by LLM rather than deterministic similarity."
-            }
-        },
-        "upgrade": {
-            "title": "Memory Activity",
+            "upgrade": {
+                "title": "Memory Activity",
                 "loading": "Loading memory telemetry...",
                 "write_events": "write events",
                 "retrieval_logs": "retrieval logs",
@@ -1190,10 +1190,12 @@
                 "transcribing": "Transcribing...",
                 "title": {
                     "idle": "Voice input (VAD)",
-                    "listening": "Listening... click to stop",
+                    "listening": "Listening — click to stop",
                     "speaking": "Speaking...",
-                    "transcribing": "Transcribing..."
-                }
+                    "transcribing": "Transcribing...",
+                    "off": "Microphone off — click to listen"
+                },
+                "off": "Microphone off — click to listen"
             },
             "drop_image_title": "Release to upload images",
             "drop_image_hint": "Supports PNG, JPG, WebP (Max 5MB each)"
@@ -1404,13 +1406,70 @@
     },
     "onboarding": {
         "workflow": {
-            "eyebrow": "Your first reply", "resume_title": "Pick up where you left off", "resume_description": "Your choices are saved. Resume whenever you are ready.", "progress": "Onboarding progress", "language_label": "Interface language", "saved_hint": "Your language, character, and provider selections are safe.", "keep_primary_surface": "Live2D + chat stay visible", "dismiss": "Save and close", "resume": "Resume setup", "retry": "Retry", "testing": "Testing", "test_connection": "Test connection", "connection_title": "Check the connection", "connection_description": "We will make one safe request to confirm your provider can answer.", "connection_success": "Connection looks good.", "chat_description": "Send one message so your companion can answer. On that first successful reply, onboarding is complete.", "chat_placeholder": "Say hello…", "send": "Send",
-            "steps": { "language": "Language", "character": "Character", "provider": "Provider", "connection-test": "Connection", "chat": "First chat" },
-            "titles": { "language": "Choose your language", "character": "Choose a companion", "provider": "Connect your provider", "connection-test": "Check the connection", "chat": "Send your first message" },
-            "descriptions": { "language": "Use Kokoro in the language that feels natural to you.", "character": "Pick the character whose voice and presence you want to meet first.", "provider": "Set only the endpoint, model, and key needed to get a reply.", "connection-test": "Confirm the provider responds before sending a chat turn.", "chat": "One successful reply completes setup." },
-            "provider": { "custom": "Custom endpoint", "provider_type": "Provider", "openai": "OpenAI-Compatible", "ollama": "Ollama (local)", "preset": "Preset", "endpoint": "Endpoint", "api_key": "API key", "model": "Model", "discover": "Discover models", "discovering": "Discovering", "testing": "Testing", "test": "Test connection", "test_success": "Connection test passed", "save": "Save provider", "saving": "Saving" },
+            "eyebrow": "Your first reply",
+            "resume_title": "Pick up where you left off",
+            "resume_description": "Your choices are saved. Resume whenever you are ready.",
+            "progress": "Onboarding progress",
+            "language_label": "Interface language",
+            "saved_hint": "Your language, character, and provider selections are safe.",
+            "keep_primary_surface": "Live2D + chat stay visible",
+            "dismiss": "Save and close",
+            "resume": "Resume setup",
+            "retry": "Retry",
+            "testing": "Testing",
+            "test_connection": "Test connection",
+            "connection_title": "Check the connection",
+            "connection_description": "We will make one safe request to confirm your provider can answer.",
+            "connection_success": "Connection looks good.",
+            "chat_description": "Send one message so your companion can answer. On that first successful reply, onboarding is complete.",
+            "chat_placeholder": "Say hello…",
+            "send": "Send",
+            "steps": {
+                "language": "Language",
+                "character": "Character",
+                "provider": "Provider",
+                "connection-test": "Connection",
+                "chat": "First chat"
+            },
+            "titles": {
+                "language": "Choose your language",
+                "character": "Choose a companion",
+                "provider": "Connect your provider",
+                "connection-test": "Check the connection",
+                "chat": "Send your first message"
+            },
+            "descriptions": {
+                "language": "Use Kokoro in the language that feels natural to you.",
+                "character": "Pick the character whose voice and presence you want to meet first.",
+                "provider": "Set only the endpoint, model, and key needed to get a reply.",
+                "connection-test": "Confirm the provider responds before sending a chat turn.",
+                "chat": "One successful reply completes setup."
+            },
+            "provider": {
+                "custom": "Custom endpoint",
+                "provider_type": "Provider",
+                "openai": "OpenAI-Compatible",
+                "ollama": "Ollama (local)",
+                "preset": "Preset",
+                "endpoint": "Endpoint",
+                "api_key": "API key",
+                "model": "Model",
+                "discover": "Discover models",
+                "discovering": "Discovering",
+                "testing": "Testing",
+                "test": "Test connection",
+                "test_success": "Connection test passed",
+                "save": "Save provider",
+                "saving": "Saving"
+            },
             "edit_provider": "Edit provider",
-            "errors": { "provider_save": "We couldn't save this provider. Check the endpoint, model, and key, then retry.", "character_activate": "We couldn't activate this character. Check the character package and retry.", "connection_failed": "We couldn't reach this provider. Check the endpoint, model, and key, then retry.", "chat_failed": "We couldn't send that message. Check the provider connection and retry.", "model_discovery": "We couldn't discover models from this provider. Check the endpoint and key, then retry." }
+            "errors": {
+                "provider_save": "We couldn't save this provider. Check the endpoint, model, and key, then retry.",
+                "character_activate": "We couldn't activate this character. Check the character package and retry.",
+                "connection_failed": "We couldn't reach this provider. Check the endpoint, model, and key, then retry.",
+                "chat_failed": "We couldn't send that message. Check the provider connection and retry.",
+                "model_discovery": "We couldn't discover models from this provider. Check the endpoint and key, then retry."
+            }
         },
         "title": "Quick Tour",
         "dismiss": "Exit guide",

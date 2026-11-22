@@ -68,16 +68,29 @@ export const ModHost = () => {
                 type: "event",
                 payload: { name: "character", id: readStringSetting(APP_SETTING_KEYS.activeCharacterId, "") },
             });
+        // The mic button belongs to the app, but the microphone belongs to the MOD.
+        // Publish its state so the icon and the actual capture can never disagree,
+        // and react immediately to a click instead of waiting for the next tick.
+        const publishMic = () =>
+            modMessageBus.broadcast({
+                type: "event",
+                payload: { name: "mic", enabled: readBooleanSetting(APP_SETTING_KEYS.modMic, true) },
+            });
+        const onMicToggle = () => publishMic();
+        window.addEventListener("kokoro:mod-mic", onMicToggle);
         publishInterrupt();
         publishCharacter();
+        publishMic();
         const interval = window.setInterval(() => {
             publishInterrupt();
             publishCharacter();
+            publishMic();
         }, 1500);
 
         return () => {
             alive = false;
             window.clearInterval(interval);
+            window.removeEventListener("kokoro:mod-mic", onMicToggle);
             for (const off of unlisteners) off();
         };
     }, [Host]);

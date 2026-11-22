@@ -23,7 +23,7 @@ import { combineDraftWithTranscription, saveCharacterDraft } from "./chat/chat-d
 import { useCharacterChatDraft } from "./chat/use-character-draft";
 import { useChatDraftSubmission } from "./chat/use-chat-draft-submission";
 import { getChatPanelInteractionProps } from "../layout/layout-interaction";
-import { APP_SETTING_KEYS, readBooleanSetting, readJsonSetting, readStringSetting } from "../../lib/app-settings";
+import { APP_SETTING_KEYS, readBooleanSetting, readJsonSetting, readStringSetting, writeBooleanSetting } from "../../lib/app-settings";
 type ChatMessage = ChatPanelMessage;
 export type { ChatPanelMessage };
 interface ChatPanelProps {
@@ -879,17 +879,25 @@ export default function ChatPanel({
     }, [visionEnabled, t, getImageDraftContext, appendPendingImage]);
 
     // ── STT: Advanced VAD Microphone toggle ─────────────────
+    // While the voice MOD is loaded it owns the microphone: it captures, cancels the
+    // echo and talks to the brain. The mic button therefore has to drive *that*
+    // listener, or the icon says "off" while she keeps hearing everything.
+    const [modMic, setModMic] = useState(() => readBooleanSetting(APP_SETTING_KEYS.modMic, true));
     const handleMicToggle = useCallback(() => {
-        if (voiceState === VoiceState.Idle) {
+        const next = !modMic;
+        writeBooleanSetting(APP_SETTING_KEYS.modMic, next);
+        setModMic(next);
+        window.dispatchEvent(new CustomEvent("kokoro:mod-mic", { detail: { enabled: next } }));
+        // Keep the engine's own STT in step so two microphones never listen at once.
+        if (next) {
             sttBaseDraftRef.current = inputRef.current;
             sttBaseCharacterIdRef.current = activeCharacterIdRef.current;
             sttBaseConversationIdRef.current = activeConversationIdRef.current;
             sttBaseGenerationRef.current = conversationGenerationRef.current;
-            startVoice({ autoStopOnSilence: true });
         } else {
             stopVoice();
         }
-    }, [voiceState, startVoice, stopVoice]);
+    }, [modMic, stopVoice]);
 
     // ── Clear history ──────────────────────────────────────
     const handleClearClick = () => setShowClearConfirm(true);
@@ -1515,41 +1523,38 @@ export default function ChatPanel({
                                         disabled={isBusy}
                                         className={clsx(
                                             "relative p-1.5 rounded-lg transition-all z-10",
-                                            voiceState === VoiceState.Idle
+                                            !modMic
                                                 ? "text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
-                                                : voiceState === VoiceState.Listening
-                                                    ? "text-[var(--color-accent)] bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30"
-                                                    : voiceState === VoiceState.Speaking
-                                                        ? "text-red-400 bg-red-500/20 border border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)]"
-                                                        : "text-amber-400 bg-amber-500/15 border border-amber-500/30",
+                                                : voiceState === VoiceState.Speaking
+                                                    ? "text-red-400 bg-red-500/20 border border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)]"
+                                                    : "text-[var(--color-accent)] bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30",
                                             isBusy && voiceState === VoiceState.Idle && "opacity-50 cursor-not-allowed"
                                         )}
                                         aria-label={
-                                            voiceState === VoiceState.Idle ? t("chat.input.mic.title.idle") :
-                                                voiceState === VoiceState.Listening ? t("chat.input.mic.title.listening") :
-                                                    voiceState === VoiceState.Speaking ? t("chat.input.mic.title.speaking") :
-                                                        t("chat.input.mic.title.transcribing")
+                                            !modMic ? t("chat.input.mic.title.off") :
+                                                voiceState === VoiceState.Speaking ? t("chat.input.mic.title.speaking") :
+                                                    voiceState === VoiceState.Processing ? t("chat.input.mic.title.transcribing") :
+                                                        t("chat.input.mic.title.listening")
                                         }
                                         title={
-                                            voiceState === VoiceState.Idle ? t("chat.input.mic.title.idle") :
-                                                voiceState === VoiceState.Listening ? t("chat.input.mic.title.listening") :
-                                                    voiceState === VoiceState.Speaking ? t("chat.input.mic.title.speaking") :
-                                                        t("chat.input.mic.title.transcribing")
+                                            !modMic ? t("chat.input.mic.title.off") :
+                                                voiceState === VoiceState.Speaking ? t("chat.input.mic.title.speaking") :
+                                                    voiceState === VoiceState.Processing ? t("chat.input.mic.title.transcribing") :
+                                                        t("chat.input.mic.title.listening")
                                         }
                                     >
                                         {voiceState === VoiceState.Processing ? (
                                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                        ) : voiceState === VoiceState.Speaking ? (
+                                        ) : !modMic ? (
+                                            // Slashed mic means exactly one thing: nothing is listening.
+                                            <MicOff size={16} strokeWidth={1.5} />
+                                        ) : (
                                             <motion.div
-                                                animate={{ scale: [1, 1.15, 1] }}
-                                                transition={{ duration: 0.6, repeat: Infinity }}
+                                                animate={{ opacity: voiceState === VoiceState.Speaking ? [1, 0.5, 1] : 1 }}
+                                                transition={{ duration: 0.9, repeat: voiceState === VoiceState.Speaking ? Infinity : 0 }}
                                             >
                                                 <Mic size={16} strokeWidth={1.5} />
                                             </motion.div>
-                                        ) : voiceState !== VoiceState.Idle ? (
-                                            <MicOff size={16} strokeWidth={1.5} />
-                                        ) : (
-                                            <Mic size={16} strokeWidth={1.5} />
                                         )}
                                     </motion.button>
                                 </div>
