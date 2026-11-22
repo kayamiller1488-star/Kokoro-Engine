@@ -18,6 +18,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(30);
+const FIRST_CHECK_DELAY: Duration = Duration::from_secs(6);
 
 struct ServiceSpec {
     name: &'static str,
@@ -161,9 +162,16 @@ impl VaStack {
 
     /// Check once now, then keep checking in the background for the life of the app.
     pub fn supervise(self: std::sync::Arc<Self>) {
-        std::thread::spawn(move || loop {
-            self.ensure();
-            std::thread::sleep(CHECK_INTERVAL);
+        std::thread::spawn(move || {
+            // Let the app finish its own startup first: the DB open plus config and
+            // history restore happen in that window, and two ONNX models loading at
+            // the same moment measurably slows it (which is when the front end's
+            // early `list_characters` call used to land on a half-built app).
+            std::thread::sleep(FIRST_CHECK_DELAY);
+            loop {
+                self.ensure();
+                std::thread::sleep(CHECK_INTERVAL);
+            }
         });
     }
 }

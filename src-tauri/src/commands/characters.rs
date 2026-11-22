@@ -262,9 +262,27 @@ const CHARACTER_COLUMNS: &str =
 
 #[tauri::command]
 pub async fn list_characters(
-    orchestrator: State<'_, AIOrchestrator>,
+    app: AppHandle,
 ) -> Result<Vec<CharacterRecord>, KokoroError> {
-    list_characters_from_pool(&orchestrator.db).await
+    // The orchestrator is built inside the startup task (it opens the DB, then
+    // restores config and history before being managed), so the front end can
+    // legitimately call this before `manage()` has happened. That surfaced as
+    // "state not managed for field `orchestrator`" on launch. The command only
+    // needs the pool, so fall back to a short-lived connection instead of
+    // failing: a read of `characters` needs no orchestrator state at all.
+    if let Some(orchestrator) = app.try_state::<AIOrchestrator>() {
+        return list_characters_from_pool(&orchestrator.db).await;
+    }
+    let app_data = resolve_app_data(&app)?;
+    let db_path = app_data.join("kokoro.db");
+    let db_url = format!("sqlite:///{}", db_path.to_string_lossy().replace('\\', "/"));
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect(&db_url)
+        .await?;
+    let result = list_characters_from_pool(&pool).await;
+    pool.close().await;
+    result
 }
 
 #[tauri::command]
