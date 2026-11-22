@@ -6,6 +6,7 @@ import { Mic, Languages, Send, HandMetal, Server, Wand2, Radio, Download } from 
 import type { SttConfig, SttProviderConfig, SenseVoiceLocalModelStatus, SenseVoiceLocalDownloadProgress } from "../../../lib/kokoro-bridge";
 import { getSenseVoiceLocalStatus, downloadSenseVoiceLocalModel, onSenseVoiceLocalProgress } from "../../../lib/kokoro-bridge";
 import { Select } from "@/components/ui/select";
+import { listMods, loadMod, unloadMod, readActiveModId } from "../../../lib/kokoro-bridge";
 
 interface SttTabProps {
     sttConfig: SttConfig;
@@ -221,6 +222,8 @@ function SenseVoiceLocalPanel({ config, onUpdate }: {
     );
 }
 
+const AEC_VOICE_MOD_ID = "va-voice-aec";
+
 export default function SttTab({
     sttConfig,
     onSttConfigChange,
@@ -228,6 +231,39 @@ export default function SttTab({
     onVoiceInterruptChange,
 }: SttTabProps) {
     const { t } = useTranslation();
+    // The AEC voice bridge is a MOD: it owns the microphone and the playback graph,
+    // the only way Chromium can cancel her own voice. This switch is its loader, so
+    // the feature is reachable without knowing about the MOD system.
+    const [aecVoiceOn, setAecVoiceOn] = useState(false);
+    const [aecVoiceBusy, setAecVoiceBusy] = useState(false);
+    const [aecVoiceNote, setAecVoiceNote] = useState<string | null>(null);
+    useEffect(() => {
+        setAecVoiceOn(readActiveModId() === AEC_VOICE_MOD_ID);
+    }, []);
+    const toggleAecVoice = async () => {
+        setAecVoiceBusy(true);
+        setAecVoiceNote(null);
+        try {
+            if (aecVoiceOn) {
+                await unloadMod();
+                setAecVoiceOn(false);
+                setAecVoiceNote("Voice bridge off");
+            } else {
+                const mods = await listMods();
+                if (!mods.some((mod) => mod.id === AEC_VOICE_MOD_ID)) {
+                    setAecVoiceNote("MOD not installed");
+                    return;
+                }
+                await loadMod(AEC_VOICE_MOD_ID);
+                setAecVoiceOn(true);
+                setAecVoiceNote("Voice bridge on - she speaks and listens in one audio graph");
+            }
+        } catch (error) {
+            setAecVoiceNote(`Failed: ${String(error)}`);
+        } finally {
+            setAecVoiceBusy(false);
+        }
+    };
     const activeProvider = sttConfig?.providers?.find(p => p.id === sttConfig.active_provider)
         ?? sttConfig?.providers?.[0];
 
@@ -497,6 +533,45 @@ export default function SttTab({
                                     className={clsx(
                                         "w-5 h-5 rounded-full absolute top-0.5",
                                         voiceInterrupt ? "bg-black" : "bg-[var(--color-text-muted)]"
+                                    )}
+                                />
+                            </motion.button>
+                        </div>
+
+                        {/* Voice (AEC) bridge toggle - loads the MOD that owns mic + playback */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Mic size={14} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+                                <div>
+                                    <div className="text-sm text-[var(--color-text-primary)]">
+                                        {t("settings.stt.aec_voice.title", "Voice without echo (AEC)")}
+                                    </div>
+                                    <div className="text-xs text-[var(--color-text-muted)]">
+                                        {t("settings.stt.aec_voice.desc", "Her microphone and her voice share one audio graph, so her own speech is cancelled instead of leaking back in. Takes over listening while on.")}
+                                    </div>
+                                    {aecVoiceNote && (
+                                        <div className="text-xs text-[var(--color-text-muted)] pt-1">{aecVoiceNote}</div>
+                                    )}
+                                </div>
+                            </div>
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                disabled={aecVoiceBusy}
+                                onClick={() => void toggleAecVoice()}
+                                className={clsx(
+                                    "w-12 h-6 rounded-full relative transition-colors duration-200",
+                                    aecVoiceOn
+                                        ? "bg-[var(--color-accent)]"
+                                        : "bg-[var(--color-bg-surface)] border border-[var(--color-border)]",
+                                    aecVoiceBusy && "opacity-50"
+                                )}
+                            >
+                                <motion.div
+                                    animate={{ x: aecVoiceOn ? 24 : 2 }}
+                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    className={clsx(
+                                        "w-5 h-5 rounded-full absolute top-0.5",
+                                        aecVoiceOn ? "bg-black" : "bg-[var(--color-text-muted)]"
                                     )}
                                 />
                             </motion.button>
