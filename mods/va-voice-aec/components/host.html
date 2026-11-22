@@ -57,7 +57,7 @@
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
-    win: [], forcedThreshold: 0, released: 0,
+    win: [], forcedThreshold: 0, released: 0, bargeIn: false,
     floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0,
     heard: [], spoken: 0, lastWav: null, lastWavSeconds: 0,
     maxLevel: 0, maxThreshold: 0, history: [],
@@ -70,6 +70,7 @@
   const counts = () => ({
     speechFrames: Math.max(2, Math.round(SPEECH_S * state.fps)),
     loudNeeded: Math.max(2, Math.ceil(Math.round(SPEECH_S * state.fps) / 2)),
+    bargeNeeded: Math.max(3, Math.ceil(Math.round(SPEECH_S * state.fps) / 2) + 1),
     silenceFrames: Math.max(2, Math.round(SILENCE_S * state.fps)),
     prerollFrames: Math.max(2, Math.round(PREROLL_S * state.fps)),
   });
@@ -113,6 +114,7 @@
       ctxState: state.ctx && state.ctx.state,
       framesPerSecond: Number(state.fps.toFixed(2)),
       liveGraphs: state.graphs,
+      bargeIn: state.bargeIn,
       counts: counts(),
       heard: state.heard.slice(-4),
       lastWavSeconds: state.lastWavSeconds,
@@ -238,13 +240,39 @@
     const c = counts();
 
     if (state.busy) return;
-    if (playing || Date.now() - state.lastPlaybackEnd < PLAYBACK_GUARD_MS) {
+    const frame = decimate(input);
+
+    if (playing) {
+      if (!state.bargeIn) {
+        // Half-duplex fallback: deaf while she talks.
+        state.roll = []; state.utt = null;
+        state.loud = 0; state.silent = 0; state.speaking = false;
+        return;
+      }
+      // Barge-in: keep listening while she speaks. Sustained speech stops her
+      // mid-sentence and becomes the start of the next turn, pre-roll included so
+      // the first word is not lost.
+      state.roll.push(frame);
+      if (state.roll.length > c.prerollFrames) state.roll.shift();
+      state.win.push(level >= threshold);
+      while (state.win.length > c.speechFrames) state.win.shift();
+      if (state.win.filter(Boolean).length >= c.bargeNeeded) {
+        say("barge-in: stopping her playback");
+        interruptPlayback();
+        state.speaking = true;
+        state.utt = state.roll.slice();
+        state.silent = 0;
+      }
+      return;
+    }
+
+    // Briefly deaf after she finishes: a reverb tail would otherwise be
+    // transcribed as the user's next turn.
+    if (Date.now() - state.lastPlaybackEnd < PLAYBACK_GUARD_MS) {
       state.roll = []; state.utt = null;
       state.loud = 0; state.silent = 0; state.speaking = false;
       return;
     }
-
-    const frame = decimate(input);
 
     // Rolling evidence window, not a run of consecutive frames: ordinary speech
     // dips below any single threshold between syllables, and a consecutive-frame
@@ -392,6 +420,15 @@
     if (!playing) void drain();
   }
 
+  /** Stop whatever she is saying right now and drop anything queued. */
+  function interruptPlayback() {
+    try { if (state.currentSrc) state.currentSrc.stop(); } catch (_) { /* already stopped */ }
+    state.currentSrc = null;
+    queue.length = 0;
+    playing = false;
+    state.lastPlaybackEnd = Date.now();
+  }
+
   async function drain() {
     if (playing) return;
     playing = true;
@@ -467,6 +504,13 @@
     if (announcements >= 12 && Date.now() - lastHostMessage <= 30000) clearInterval(readyTimer);
   }, 2500);
 
+  // The app's "Voice Interrupt" switch decides whether she may be talked over.
+  // Its own interrupt service cannot see this frame's playback, so the host
+  // broadcasts the value and we honour it here.
+  Kokoro.on("voice-interrupt", (payload) => {
+    state.bargeIn = !!payload.enabled;
+    say(`barge-in ${state.bargeIn ? "on" : "off"}`);
+  });
   Kokoro.on("chat-delta", (payload) => onDelta(payload));
   Kokoro.on("chat-done", (payload) => onDone(payload));
   Kokoro.on("update", () => { void startAudio(); });

@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { registry } from "../registry/ComponentRegistry";
 import { modMessageBus } from "./ModMessageBus";
 import { onChatTurnDelta, onChatTurnFinish } from "../../lib/kokoro-bridge";
+import { readBooleanSetting, APP_SETTING_KEYS } from "../../lib/app-settings";
 
 let registrySnapshot = 0;
 const subscribeRegistry = (onStoreChange: () => void) =>
@@ -47,8 +48,24 @@ export const ModHost = () => {
         void onChatTurnFinish(({ turn_id, status }) =>
             modMessageBus.broadcast({ type: "event", payload: { name: "chat-done", turn_id, status } })
         ).then(keep).catch(() => { /* engine stream unavailable */ });
+        // The app's own Voice Interrupt service cannot see a MOD frame's playback,
+        // so it can neither detect speech over it nor stop it. Publish the setting
+        // to the frame instead; it is the one holding the audio.
+        // Broadcast unconditionally: the frame may not be registered yet when this
+        // effect first runs (so a one-shot send is lost), and the setting is stored
+        // in localStorage which only changes on a settings save. One postMessage
+        // every 1.5 s is cheaper than the bugs a cache of "last value" caused.
+        const publishInterrupt = () =>
+            modMessageBus.broadcast({
+                type: "event",
+                payload: { name: "voice-interrupt", enabled: readBooleanSetting(APP_SETTING_KEYS.voiceInterrupt, false) },
+            });
+        publishInterrupt();
+        const interval = window.setInterval(publishInterrupt, 1500);
+
         return () => {
             alive = false;
+            window.clearInterval(interval);
             for (const off of unlisteners) off();
         };
     }, [Host]);

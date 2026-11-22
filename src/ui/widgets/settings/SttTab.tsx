@@ -7,6 +7,8 @@ import type { SttConfig, SttProviderConfig, SenseVoiceLocalModelStatus, SenseVoi
 import { getSenseVoiceLocalStatus, downloadSenseVoiceLocalModel, onSenseVoiceLocalProgress } from "../../../lib/kokoro-bridge";
 import { Select } from "@/components/ui/select";
 import { listMods, loadMod, unloadMod, readActiveModId } from "../../../lib/kokoro-bridge";
+import { modMessageBus } from "../../mods/ModMessageBus";
+import { writeBooleanSetting, APP_SETTING_KEYS } from "../../../lib/app-settings";
 
 interface SttTabProps {
     sttConfig: SttConfig;
@@ -519,7 +521,16 @@ export default function SttTab({
                             </div>
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => onVoiceInterruptChange(!voiceInterrupt)}
+                                onClick={() => {
+                                    const next = !voiceInterrupt;
+                                    onVoiceInterruptChange(next);
+                                    // The AEC MOD owns playback, so its interrupt is what
+                                    // actually stops her voice. Persist immediately (the
+                                    // settings panel would only write this on SAVE) and
+                                    // tell the frame right away.
+                                    writeBooleanSetting(APP_SETTING_KEYS.voiceInterrupt, next);
+                                    modMessageBus.broadcast({ type: "event", payload: { name: "voice-interrupt", enabled: next } });
+                                }}
                                 className={clsx(
                                     "w-12 h-6 rounded-full relative transition-colors duration-200",
                                     voiceInterrupt
@@ -559,7 +570,10 @@ export default function SttTab({
                                 disabled={aecVoiceBusy}
                                 onClick={() => void toggleAecVoice()}
                                 className={clsx(
-                                    "w-12 h-6 rounded-full relative transition-colors duration-200",
+                                    // shrink-0: this row's description is long, and a
+                                    // shrinking flex item leaves the absolutely
+                                    // positioned knob hanging past the track.
+                                    "w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200",
                                     aecVoiceOn
                                         ? "bg-[var(--color-accent)]"
                                         : "bg-[var(--color-bg-surface)] border border-[var(--color-border)]",
