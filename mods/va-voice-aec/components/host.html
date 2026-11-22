@@ -40,7 +40,14 @@
 
   const EARS = "http://127.0.0.1:9882/transcribe";
   const MOUTH = "http://127.0.0.1:9881/v1/audio/speech";
+  // Voice follows the active character: the engine broadcasts who is active and the
+  // mouth (:9881) already owns one blend vector per name, so this stays a lookup.
   const VOICE = "sasha";
+  const VOICES = { kana: "kana", sasha: "sasha" };
+  const voiceFor = (id) => VOICES[String(id || "").toLowerCase()] || VOICE;
+  // She writes cues inline as [smirk] because the prompt offers them. Never speak
+  // the brackets: strip them before synthesis.
+  const stripCues = (text) => String(text || "").replace(/\[[^\]\n]{1,40}\]/g, " ").replace(/\s{2,}/g, " ").trim();
   const ASR_RATE = 16000;
   const BLOCK = 4096;
   const ABS_MIN_RMS = 0.0015;
@@ -53,6 +60,7 @@
   const MAX_UTTERANCE_S = 15;
 
   const state = {
+    characterId: "", voice: VOICE,
     ctx: null, mic: null, source: null, proc: null, sink: null,
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
@@ -444,7 +452,7 @@
         const res = await fetch(MOUTH, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: VOICE, input: sentence, voice: VOICE }),
+          body: JSON.stringify({ model: state.voice, input: stripCues(sentence), voice: state.voice }),
         });
         if (!res.ok) throw new Error("mouth " + res.status);
         const wav = await res.arrayBuffer();
@@ -514,6 +522,15 @@
   // The app's "Voice Interrupt" switch decides whether she may be talked over.
   // Its own interrupt service cannot see this frame's playback, so the host
   // broadcasts the value and we honour it here.
+  // Who is active decides the voice; broadcast every 1.5 s by ModHost.
+  Kokoro.on("character", (payload) => {
+    const id = String(payload.id || "").toLowerCase();
+    if (id && id !== state.characterId) {
+      state.characterId = id;
+      state.voice = voiceFor(id);
+      say(`voice -> ${state.voice} (${id})`);
+    }
+  });
   Kokoro.on("voice-interrupt", (payload) => {
     state.bargeIn = !!payload.enabled;
     say(`barge-in ${state.bargeIn ? "on" : "off"}`);

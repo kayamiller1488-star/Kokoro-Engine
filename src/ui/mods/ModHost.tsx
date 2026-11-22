@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { registry } from "../registry/ComponentRegistry";
 import { modMessageBus } from "./ModMessageBus";
 import { onChatTurnDelta, onChatTurnFinish } from "../../lib/kokoro-bridge";
-import { readBooleanSetting, APP_SETTING_KEYS } from "../../lib/app-settings";
+import { readBooleanSetting, readStringSetting, APP_SETTING_KEYS } from "../../lib/app-settings";
 
 let registrySnapshot = 0;
 const subscribeRegistry = (onStoreChange: () => void) =>
@@ -60,8 +60,20 @@ export const ModHost = () => {
                 type: "event",
                 payload: { name: "voice-interrupt", enabled: readBooleanSetting(APP_SETTING_KEYS.voiceInterrupt, false) },
             });
+        // The frame cannot read the host's localStorage (different origin), but it is
+        // the only place that speaks. Publish who is active so the voice matches the
+        // character instead of every persona borrowing one voice.
+        const publishCharacter = () =>
+            modMessageBus.broadcast({
+                type: "event",
+                payload: { name: "character", id: readStringSetting(APP_SETTING_KEYS.activeCharacterId, "") },
+            });
         publishInterrupt();
-        const interval = window.setInterval(publishInterrupt, 1500);
+        publishCharacter();
+        const interval = window.setInterval(() => {
+            publishInterrupt();
+            publishCharacter();
+        }, 1500);
 
         return () => {
             alive = false;
