@@ -97,7 +97,9 @@
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
-    win: [], forcedThreshold: 0, released: 0, bargeIn: false, playbackStartedAt: 0,
+    win: [], bargeWin: [], forcedThreshold: 0, released: 0, bargeIn: false, playbackStartedAt: 0,
+    currentTurnId: "", interruptedTurn: "", turnOpen: false, turnStartedAt: 0, lastDeltaAt: 0,
+    bargeMaxLevel: 0, bargeLoudFrames: 0,
     floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0, guardMs: PLAYBACK_GUARD_MS,
     heard: [], spoken: 0, lastWav: null, lastWavSeconds: 0,
     maxLevel: 0, maxThreshold: 0, history: [],
@@ -288,8 +290,13 @@
 
     if (state.busy) return;
     const frame = decimate(input);
+    // A streamed reply has gaps between sentences (the mouth is still generating the next one).
+    // In those gaps `playing` is false and the mic re-opened, which transcribed her own sentence
+    // tail as a new user turn ("The.") and that phantom turn then cut her off. Her turn counts as
+    // live from the first delta until chat-done.
+    const turnActive = state.turnOpen && (Date.now() - state.lastDeltaAt < 20000);
 
-    if (playing) {
+    if (playing || turnActive) {
       if (!state.bargeIn) {
         // Half-duplex fallback: deaf while she talks.
         state.roll = []; state.utt = null;
@@ -306,12 +313,19 @@
       // louder, longer signal than starting a turn, or she cuts herself off and
       // transcribes her own sentence.
       const bargeThreshold = state.forcedThreshold || Math.max(threshold * 3, 0.008);
-      const settled = state.playbackStartedAt && (Date.now() - state.playbackStartedAt) > 400;
-      state.win.push(settled && level >= bargeThreshold);
-      while (state.win.length > c.speechFrames) state.win.shift();
-      if (settled && state.win.filter(Boolean).length >= c.bargeNeeded) {
+      const settled = state.turnStartedAt && (Date.now() - state.turnStartedAt) > 400;
+      // Diagnostics for tuning: what the mic actually sees while she holds the floor.
+      if (level > state.bargeMaxLevel) state.bargeMaxLevel = level;
+      if (level >= bargeThreshold) state.bargeLoudFrames += 1;
+      // Its own window. The shared speech window is capped at speechFrames (~8 at 11.7 fps)
+      // while interrupting needs bargeNeeded (~10), so testing the shared one could never be
+      // satisfied and barge-in silently never fired.
+      state.bargeWin.push(settled && level >= bargeThreshold);
+      const bargeWindow = Math.max(c.bargeNeeded, c.speechFrames);
+      while (state.bargeWin.length > bargeWindow) state.bargeWin.shift();
+      if (settled && state.bargeWin.filter(Boolean).length >= c.bargeNeeded) {
         say("barge-in: stopping her playback");
-        interruptPlayback();
+        interruptPlayback(true);
         state.speaking = true;
         state.utt = state.roll.slice();
         state.silent = 0;
@@ -491,12 +505,21 @@
   }
 
   /** Stop whatever she is saying right now and drop anything queued. */
-  function interruptPlayback() {
+  function interruptPlayback(barged = false) {
     try { if (state.currentSrc) state.currentSrc.stop(); } catch (_) { /* already stopped */ }
     state.currentSrc = null;
     queue.length = 0;
     playing = false;
-    state.lastPlaybackEnd = Date.now();
+    state.bargeWin.length = 0;
+    // He cut in, so there is no reverb tail to be deaf to: drop the post-playback guard,
+    // otherwise the 300 ms deaf window eats the first syllables of the turn he just started.
+    state.lastPlaybackEnd = barged ? 0 : Date.now();
+    if (barged) {
+      state.interruptedTurn = state.currentTurnId || "";
+      state.turnOpen = false;
+      state.bargeMaxLevel = 0;
+      state.bargeLoudFrames = 0;
+    }
   }
 
   async function drain() {
@@ -519,6 +542,7 @@
           src.connect(state.ctx.destination);
           state.currentSrc = src;
           state.playbackStartedAt = Date.now();
+          state.bargeWin.length = 0;
           src.onended = () => { state.currentSrc = null; resolve(); };
           src.start();
         });
@@ -536,11 +560,22 @@
   let lastDeltaAt = 0;
 
   function onDelta(payload) {
+    // The sentence she was saying when he cut in must not resume: the app keeps streaming
+    // the rest of that turn, and without this its remaining sentences are spoken over him.
+    if (payload.turn_id) {
+      if (payload.turn_id === state.interruptedTurn) { pending = ""; return; }
+      if (payload.turn_id !== state.currentTurnId) {
+        state.currentTurnId = payload.turn_id;
+        state.interruptedTurn = "";
+      }
+    }
     const key = `${payload.turn_id || ""}:${payload.delta || ""}`;
     const now = Date.now();
     if (key === lastDeltaKey && now - lastDeltaAt < 1000) return;
     lastDeltaKey = key;
     lastDeltaAt = now;
+    if (!state.turnOpen) { state.turnOpen = true; state.turnStartedAt = Date.now(); }
+    state.lastDeltaAt = Date.now();
     pending += payload.delta || "";
     const match = pending.match(/^([\s\S]*?[.!?。！？\n])(\s*)([\s\S]*)$/);
     if (match) {
@@ -550,6 +585,9 @@
   }
 
   function onDone(payload) {
+    state.turnOpen = false;
+    state.bargeMaxLevel = 0;
+    state.bargeLoudFrames = 0;
     if (payload && payload.status && payload.status !== "completed") { pending = ""; return; }
     if (pending.trim()) enqueue(pending);
     pending = "";
