@@ -399,40 +399,37 @@ export class Live2DController {
 
     private poseDriver: {
         frame: number;
-        from: Partial<Record<PoseChannel, number>>;
-        to: Partial<Record<PoseChannel, number>>;
-        current: Partial<Record<PoseChannel, number>>;
-        spanStart: number;
-        spanMs: number;
-        lastArrival: number;
+        target: Partial<Record<PoseChannel, number>>;
+        position: Partial<Record<PoseChannel, number>>;
+        velocity: Partial<Record<PoseChannel, number>>;
+        lastStepAt: number;
         receivedAt: number;
         base: Map<string, number>;
     } | null = null;
 
     private static readonly POSE_STALE_MS = 400;
-    /** Fallback span when the arrival interval cannot be measured yet, and the bounds worth
-     * interpolating across. A span outside them means the frame arrived early or late, and the
-     * motion should keep its own pace rather than slowing down or lurching to catch up. */
-    private static readonly POSE_SPAN_DEFAULT_MS = 1000 / 30;
-    private static readonly POSE_SPAN_MIN_MS = 16;
-    private static readonly POSE_SPAN_MAX_MS = 50;
 
-    /** The pose the driver would display right now, interpolated between the last two arrivals. */
-    private poseAt(now: number): Partial<Record<PoseChannel, number>> {
-        const driver = this.poseDriver;
-        if (!driver) return {};
-        const alpha = driver.spanMs <= 0
-            ? 1
-            : Math.max(0, Math.min(1, (now - driver.spanStart) / driver.spanMs));
-        const out: Partial<Record<PoseChannel, number>> = {};
-        for (const key of Object.keys(driver.to) as PoseChannel[]) {
-            const target = driver.to[key];
-            if (typeof target !== "number") continue;
-            const origin = driver.from[key];
-            out[key] = typeof origin === "number" ? origin + (target - origin) * alpha : target;
-        }
-        return out;
-    }
+    /**
+     * Spring that carries each channel toward the newest pose frame.
+     *
+     * This is AIRI's `motion-control-spring` with the dynamics their MAGIC path uses
+     * (`defaultLive2DMotionControlDynamics = { follow: 1, inertia: 0.6 }`):
+     *
+     *   stiffness = 30 + follow·190   = 220
+     *   mass      = 0.75 + inertia·2.25 = 2.1
+     *   ζ (damping ratio) = 1 − inertia·0.75 = 0.55   (underdamped: a slight overshoot)
+     *
+     * Linear interpolation between 30 Hz frames keeps position continuous but makes velocity jump
+     * at every frame boundary, which reads as a mechanical tick; a spring keeps both continuous and
+     * is what gives their motion its overshoot-and-settle bounce. Their loop clamps each step to
+     * 1/120 s, so a slow frame is subdivided rather than integrated in one go.
+     */
+    private static readonly POSE_SPRING_STIFFNESS = 30 + 1 * 190;
+    private static readonly POSE_SPRING_MASS = 0.75 + 0.6 * 2.25;
+    private static readonly POSE_SPRING_DAMPING = 2
+        * Math.sqrt(220 * 2.1)
+        * (1 - 0.6 * 0.75);
+    private static readonly POSE_SPRING_MAX_STEP_S = 1 / 120;
 
 
     /** Channel -> rig parameter, with the range the channel's -1..1 maps onto. `bipolar: false`
@@ -475,35 +472,74 @@ export class Live2DController {
         if (!this.poseDriver) {
             this.poseDriver = {
                 frame: 0,
-                from: {},
-                to: {},
-                current: {},
-                spanStart: now,
-                spanMs: 0,
-                lastArrival: 0,
+                target: {},
+                position: {},
+                velocity: {},
+                lastStepAt: now,
                 receivedAt: now,
                 base: new Map(),
             };
+            // Begin at the incoming pose: a spring started from rest would visibly drag the head
+            // up from neutral every time the driver attaches.
+            for (const key of Object.keys(pose) as PoseChannel[]) {
+                const value = pose[key];
+                if (typeof value !== "number" || !Number.isFinite(value)) continue;
+                this.poseDriver.position[key] = value;
+                this.poseDriver.velocity[key] = 0;
+            }
         }
         const driver = this.poseDriver;
 
-        // Where the model is *now* becomes the origin of the next span, so a new frame never
-        // snaps the pose backwards mid-interpolation.
-        driver.from = this.poseAt(now);
-        driver.to = pose;
-        driver.spanStart = now;
-        driver.spanMs = driver.lastArrival > 0
-            ? Math.min(
-                Live2DController.POSE_SPAN_MAX_MS,
-                Math.max(Live2DController.POSE_SPAN_MIN_MS, now - driver.lastArrival),
-            )
-            : Live2DController.POSE_SPAN_DEFAULT_MS;
-        driver.lastArrival = now;
+        // The newest frame is the spring's target. A channel the frame omits keeps its previous
+        // target rather than snapping to neutral.
+        for (const key of Object.keys(pose) as PoseChannel[]) {
+            const value = pose[key];
+            if (typeof value !== "number" || !Number.isFinite(value)) continue;
+            driver.target[key] = value;
+            if (typeof driver.position[key] !== "number") driver.position[key] = value;
+            if (typeof driver.velocity[key] !== "number") driver.velocity[key] = 0;
+        }
         driver.receivedAt = now;
 
         if (!driver.frame) {
             driver.frame = requestAnimationFrame(() => this.tickPose());
         }
+    }
+
+    /**
+     * Advance the spring one rendered frame and return the pose to write this frame.
+     *
+     * Semi-implicit Euler, subdivided into steps no longer than 1/120 s, exactly as AIRI's
+     * `stepAxis` does - a 140 fps frame is a single 7 ms step, a stalled 60 ms frame becomes eight,
+     * so a hitch cannot fling the head across the rig.
+     */
+    private stepPoseSpring(now: number): Partial<Record<PoseChannel, number>> {
+        const driver = this.poseDriver;
+        if (!driver) return {};
+        const elapsedSeconds = Math.min(0.25, Math.max(0, (now - driver.lastStepAt) / 1000));
+        driver.lastStepAt = now;
+
+        const stiffness = Live2DController.POSE_SPRING_STIFFNESS;
+        const mass = Live2DController.POSE_SPRING_MASS;
+        const damping = Live2DController.POSE_SPRING_DAMPING;
+        const maxStep = Live2DController.POSE_SPRING_MAX_STEP_S;
+
+        let remaining = elapsedSeconds;
+        while (remaining > 1e-6) {
+            const dt = Math.min(maxStep, remaining);
+            remaining -= dt;
+            for (const key of Object.keys(driver.target) as PoseChannel[]) {
+                const target = driver.target[key];
+                if (typeof target !== "number") continue;
+                const position = driver.position[key] ?? target;
+                const velocity = driver.velocity[key] ?? 0;
+                const acceleration = (stiffness * (target - position) - damping * velocity) / mass;
+                const nextVelocity = velocity + acceleration * dt;
+                driver.velocity[key] = nextVelocity;
+                driver.position[key] = position + nextVelocity * dt;
+            }
+        }
+        return driver.position;
     }
 
     private tickPose(): void {
@@ -523,8 +559,7 @@ export class Live2DController {
             return;
         }
 
-        const pose = this.poseAt(now);
-        driver.current = pose;
+        const pose = this.stepPoseSpring(now);
 
         try {
             // Eye closing is multiplicative in Cubism (and AIRI maps it the same way): the channel

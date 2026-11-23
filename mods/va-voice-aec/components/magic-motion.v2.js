@@ -130,8 +130,13 @@
     if (!idleEntry) return;
     var speakEntry = state.models[state.config.speakingProfile];
 
+    // One generator, one advance. When the idle and speaking profiles are the same profile the two
+    // entries are the SAME object, so stepping both would run that model at 60 Hz and inject twice
+    // the noise per second - measured as ~2x the reference amplitude (std 12.2 deg against AIRI's
+    // 7.2 on the same recording).
+    var sameEntry = speakEntry === idleEntry;
     var idle = step(idleEntry);
-    var speaking = speakEntry ? step(speakEntry) : idle;
+    var speaking = sameEntry ? idle : step(speakEntry);
 
     var target = speakingNow() ? 1 : 0;
     var ms = target > state.speakWeight ? FADE_IN_MS : FADE_OUT_MS;
