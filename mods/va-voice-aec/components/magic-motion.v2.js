@@ -176,7 +176,11 @@
     var eyeX = get('eyeX');
     var eyeY = get('eyeY');
     var gazeWeight = state.config.gazeLock === false ? 0 : 1;
-    var gazeX = clampAxis(-headX - bodyX * (10 / 30));
+    // Same unit mismatch on the horizontal axis: a head turn of 10 deg needs far more than 0.33 of
+    // eye travel to keep the gaze level, so gain 1 leaves her looking the way the head turned
+    // (the owner sees "upper left" on a rig whose rest pose measures exactly neutral).
+    var gazeGainX = typeof state.config.gazeGainX === 'number' ? state.config.gazeGainX : 2;
+    var gazeX = clampAxis((-headX - bodyX * (10 / 30)) * gazeGainX);
     // The eye channel and the head angle are NOT the same units: ParamAngleY spans +-30 deg while
     // ParamEyeBallY only moves the pupil a few degrees. AIRI's formula subtracts headY from eyeY at
     // gain 1; on this rig that under-corrects by half and reads as "looking up". Measured with the
