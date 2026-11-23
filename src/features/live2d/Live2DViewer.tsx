@@ -404,6 +404,15 @@ const Live2DViewer = forwardRef<Live2DViewerHandle, Live2DViewerProps>(
                     }
 
                     modelRef.current = model;
+                    // A freshly loaded model starts with pixi's focus wherever it was left, and pixi
+                    // steers eyes and head toward it every frame. With tracking switched off nothing
+                    // would ever clear it, so the character mounts already looking off to one side -
+                    // measured on the pet window: head +16.3 deg, eyes 0.54 right, carried over from a
+                    // cursor that had last been on the right of the canvas.
+                    if (!gazeTrackingRef.current) {
+                        const { width, height } = app.screen;
+                        model.focus(width / 2, height / 2);
+                    }
                     const ctrl = getActiveController();
                     if (ctrl) {
                         ctrl.setModel(model);
