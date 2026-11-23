@@ -40,6 +40,7 @@ export const APP_SETTING_KEYS = {
   magicSpeakingProfile: "kokoro_magic_speaking_profile",
   magicFollowSpeech: "kokoro_magic_follow_speech",
   magicLiveliness: "kokoro_magic_liveliness",
+  magicStrength: "kokoro_magic_strength",
   // The voice MOD owns the microphone while it is loaded, so this is the switch
   // the chat mic button actually drives: on = that frame is listening.
   modMic: "kokoro_mod_mic",

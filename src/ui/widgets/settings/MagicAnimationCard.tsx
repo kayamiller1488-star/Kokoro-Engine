@@ -29,6 +29,7 @@ import { modMessageBus } from "../../mods/ModMessageBus";
 const DEFAULT_IDLE = "calm";
 const DEFAULT_SPEAKING = "excited";
 const DEFAULT_LIVELINESS = 0.7;
+const DEFAULT_STRENGTH = 0.7;
 
 type MotionSource = "model" | "magic";
 
@@ -50,6 +51,9 @@ export function MagicAnimationCard() {
     const [liveliness, setLiveliness] = useState<number>(() =>
         readNumberSetting(APP_SETTING_KEYS.magicLiveliness, DEFAULT_LIVELINESS)
     );
+    const [strength, setStrength] = useState<number>(() =>
+        readNumberSetting(APP_SETTING_KEYS.magicStrength, DEFAULT_STRENGTH)
+    );
 
     const publish = useCallback(() => {
         modMessageBus.broadcast({
@@ -61,9 +65,10 @@ export function MagicAnimationCard() {
                 speakingProfile,
                 followSpeech,
                 noise: liveliness,
+                strength,
             },
         });
-    }, [source, idleProfile, speakingProfile, followSpeech, liveliness]);
+    }, [source, idleProfile, speakingProfile, followSpeech, liveliness, strength]);
 
     // Republish on a slow interval so a frame that mounts late still receives the current values.
     const publishRef = useRef(publish);
@@ -86,6 +91,7 @@ export function MagicAnimationCard() {
                 speakingProfile,
                 followSpeech,
                 noise: liveliness,
+                strength,
             },
         });
     };
@@ -112,6 +118,12 @@ export function MagicAnimationCard() {
     const changeLiveliness = (next: number) => {
         setLiveliness(next);
         writeNumberSetting(APP_SETTING_KEYS.magicLiveliness, next);
+        publish();
+    };
+
+    const changeStrength = (next: number) => {
+        setStrength(next);
+        writeNumberSetting(APP_SETTING_KEYS.magicStrength, next);
         publish();
     };
 
@@ -253,6 +265,43 @@ export function MagicAnimationCard() {
                             "[&::-moz-range-thumb]:bg-[var(--color-accent)]",
                         )}
                         aria-label={t("settings.model.animation.liveliness", { defaultValue: "Liveliness" })}
+                    />
+                </div>
+
+                <div>
+                    <div className="flex items-center justify-between">
+                        <label className={labelClasses}>
+                            {t("settings.model.animation.strength", { defaultValue: "Motion strength" })}
+                        </label>
+                        <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
+                            {strength.toFixed(2)}
+                        </span>
+                    </div>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5 mb-2">
+                        {t("settings.model.animation.strength_desc", {
+                            defaultValue:
+                                "Scales how far she moves, without changing how lively it looks. Turn this down if a reference is too big for the rig.",
+                        })}
+                    </p>
+                    <input
+                        type="range"
+                        min={0.2}
+                        max={1.5}
+                        step={0.05}
+                        value={strength}
+                        onChange={(event) => changeStrength(Number(event.target.value))}
+                        className={clsx(
+                            "w-full h-1.5 rounded-full appearance-none cursor-pointer",
+                            "bg-[var(--color-border)]",
+                            "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4",
+                            "[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full",
+                            "[&::-webkit-slider-thumb]:bg-[var(--color-accent)]",
+                            "[&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer",
+                            "[&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4",
+                            "[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0",
+                            "[&::-moz-range-thumb]:bg-[var(--color-accent)]",
+                        )}
+                        aria-label={t("settings.model.animation.strength", { defaultValue: "Motion strength" })}
                     />
                 </div>
             </div>

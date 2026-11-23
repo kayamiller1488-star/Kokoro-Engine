@@ -29,7 +29,11 @@
       idleProfile: 'calm',
       speakingProfile: 'excited',
       followSpeech: true,
-      noise: 0.7
+      noise: 0.7,
+      // Amplitude of the finished pose, separate from `noise`. Noise changes how lively the
+      // movement is; strength scales what comes out, so a reference that is too big for this rig
+      // can be turned down without making it look lazy or frozen.
+      strength: 0.7
     },
     speakWeight: 0,
     timer: null,
@@ -121,10 +125,12 @@
 
     var w = state.speakWeight;
     var axes = idleEntry.model.axes;
+    var scale = state.config.strength;
     var get = function (name) {
       var idx = axes.indexOf(name);
       if (idx < 0) return 0;
-      return idle[idx] * (1 - w) + speaking[idx] * w;
+      var blended = idle[idx] * (1 - w) + speaking[idx] * w;
+      return Math.max(-1, Math.min(1, blended * scale));
     };
 
     send({
@@ -180,6 +186,9 @@
     if (typeof next.followSpeech === 'boolean') state.config.followSpeech = next.followSpeech;
     if (typeof next.noise === 'number' && isFinite(next.noise)) {
       state.config.noise = Math.max(0, Math.min(1.5, next.noise));
+    }
+    if (typeof next.strength === 'number' && isFinite(next.strength)) {
+      state.config.strength = Math.max(0, Math.min(2, next.strength));
     }
     if (typeof next.idleProfile === 'string' && PROFILES[next.idleProfile]) {
       state.config.idleProfile = next.idleProfile;
