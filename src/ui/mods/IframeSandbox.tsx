@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { modMessageBus } from './ModMessageBus';
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
 
 /** Message protocol between host ↔ iframe */
@@ -87,6 +88,9 @@ const ALLOWED_MOD_COMMANDS = new Set([
     // Cue / motion control
     'play_cue',
     'play_motion',
+    // Motion: a MOD may drive the model with its own pose frames (one per ~33 ms).
+    // Host-local - it is turned into a `live2d-pose` event, never proxied to Tauri.
+    'apply_live2d_pose',
     // Lip sync: the MOD owns playback, so it reports the mouth level
     'mod_mouth_level',
     'get_live2d_model_profile',
@@ -124,6 +128,7 @@ const ALLOWED_MOD_COMMANDS = new Set([
 const MOD_COMMAND_PERMISSIONS: Record<string, string> = {
     'play_cue': 'tts',
     'play_motion': 'tts',
+    'apply_live2d_pose': 'tts',
     'get_live2d_model_profile': 'tts',
     'get_tts_config': 'tts',
     'get_memory_enabled': 'memory',
@@ -386,6 +391,17 @@ export const IframeSandbox = ({
                                 || !readyRef.current) return;
                             requestWindow.postMessage({ type: 'invoke-result', payload }, requestOrigin);
                         };
+
+                        // apply_live2d_pose: host-local. The pose leaves as a Tauri event for whichever
+                        // window owns the model, and is never proxied to Tauri, so this seam adds no
+                        // Rust command. A MOD can only stall its own frames - the controller releases
+                        // the model when the pose stream goes quiet.
+                        if (cmd === 'apply_live2d_pose') {
+                            const args = (invokePayload.args ?? {}) as { pose?: Record<string, number> | null };
+                            void emit('live2d-pose', args.pose ?? null);
+                            respond({ id: invokePayload.id, result: { ok: true } });
+                            break;
+                        }
 
                         let promise: Promise<unknown>;
 

@@ -1,15 +1,21 @@
 {
     "id": "va-voice-aec",
     "name": "VA Voice (AEC)",
-    "version": "0.1.0",
-    "description": "Owns microphone and playback inside one document so Chromium's echo cancellation applies to her own voice. Adds no visible UI.",
+    "version": "0.2.0",
+    "description": "Owns microphone and playback inside one document so Chromium's echo cancellation applies to her own voice. Also hosts the MAGIC motion driver, which pushes generated pose frames to the app. Adds no visible UI.",
     "engine_version": ">=0.4.0, <0.5.0",
     "components": {
         "ModHost": "components/host.html"
     },
     "scripts": [],
-    "permissions": [],
-    "capabilities": [],
+    "permissions": ["tts"],
+    "capabilities": [
+        {
+            "name": "tts",
+            "risk": "low",
+            "requires_confirmation": false
+        }
+    ],
     "entry": null,
     "ui_entry": null
 }

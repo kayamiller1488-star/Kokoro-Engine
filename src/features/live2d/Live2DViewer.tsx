@@ -11,7 +11,7 @@
  */
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Live2DModel } from "pixi-live2d-display/cubism4";
-import { Live2DController, type IdleBehavior } from "./Live2DController";
+import { Live2DController, type IdleBehavior, type PoseChannel } from "./Live2DController";
 import { APP_SETTING_KEYS, readJsonSetting } from "../../lib/app-settings";
 import type { AppliedCharacterCueProfile } from "../characters/character-cue-profile";
 import { drawableHitTest, estimateRegionByY, REGION_DESCRIPTIONS } from "./DrawableHitTest";
@@ -120,6 +120,30 @@ const Live2DViewer = forwardRef<Live2DViewerHandle, Live2DViewerProps>(
                 internalControllerRef.current = null;
             };
         }, [controller]);
+
+        // External pose driver (MAGIC motion MOD).
+        //
+        // The MOD cannot reach the model — it only has postMessage — so poses arrive as a Tauri
+        // event and are applied here. `null` means "stop, hand the model back"; the controller also
+        // releases on its own when the stream goes quiet, so a crashed MOD cannot freeze the face.
+        useEffect(() => {
+            let disposed = false;
+            let unlisten: (() => void) | null = null;
+
+            void listen<Partial<Record<PoseChannel, number>> | null>("live2d-pose", (event) => {
+                if (disposed) return;
+                getActiveController()?.applyPose(event.payload ?? null);
+            }).then((fn) => {
+                if (disposed) fn();
+                else unlisten = fn;
+            });
+
+            return () => {
+                disposed = true;
+                unlisten?.();
+                getActiveController()?.releasePose();
+            };
+        }, [getActiveController]);
 
         useEffect(() => {
             const ctrl = getActiveController();

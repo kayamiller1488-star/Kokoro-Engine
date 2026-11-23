@@ -31,6 +31,10 @@
   #log { display: none; }
 </style>
 <script src="/mod-sdk.js"></script>
+<!-- MAGIC motion driver (gate A). Loaded after the SDK so Kokoro.invoke exists; the file waits
+     for the bridge itself and does nothing at all if it never appears. Kept out of the block below
+     so the voice loop cannot be affected by a motion bug. -->
+<script src="magic-gate-a.js"></script>
 </head>
 <body>
 <div id="log"></div>

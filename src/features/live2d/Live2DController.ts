@@ -8,6 +8,21 @@ import { getLive2dModelProfile, type Live2dModelProfile } from "../../lib/kokoro
 export type AnimationState = "Idle" | "Speaking" | "Interactive";
 export type CueName = string;
 
+/** Channels a motion MOD may drive, each normalised to -1..1 (see Live2DController.POSE_PARAMS).
+ *  These mirror the fourteen values a generative motion model produces; the mouth is deliberately
+ *  absent because lip sync owns ParamMouthOpenY. */
+export type PoseChannel =
+    | "headX"
+    | "headY"
+    | "headZ"
+    | "bodyX"
+    | "bodyY"
+    | "bodyZ"
+    | "eyeX"
+    | "eyeY"
+    | "eyeSquint"
+    | "breath";
+
 export type IdleBehavior =
     | { type: "look_around"; params: { direction: number; duration_ms: number } }
     | { type: "stretch"; params: Record<string, never> }
@@ -361,6 +376,132 @@ export class Live2DController {
             core?.setParameterValueById?.(param.id, param.base);
         }
         this.expressionDriver = null;
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // External pose driver (MAGIC motion MOD)
+    //
+    // A MOD pushes normalised poses over the `live2d-pose` event (one frame, roughly 30 per
+    // second). Nothing in the app generates these frames: with no MOD attached this stays
+    // dormant and the model behaves exactly as it did before. Poses are mapped onto the rig's
+    // own parameters here, because the MOD has no access to the model.
+    //
+    // The pose is re-applied every render frame while it is fresh, which is deliberate: Cubism's
+    // physics sways ParamAngle* on its own each frame, so a write that happens once loses the race.
+    // When the MOD stops (or the window is hidden and the event stream stalls) the captured rest
+    // values are restored, so the model does not freeze in whatever pose it was left in.
+    // -----------------------------------------------------------------------------------------
+
+    private poseDriver: {
+        frame: number;
+        pose: Partial<Record<PoseChannel, number>> | null;
+        receivedAt: number;
+        base: Map<string, number>;
+    } | null = null;
+
+    private static readonly POSE_STALE_MS = 400;
+
+    /** Channel -> rig parameter, with the range the channel's -1..1 maps onto. `bipolar: false`
+     * means the channel is unipolar in Cubism (0..1), so -1..1 is shifted rather than scaled. */
+    private static readonly POSE_PARAMS: Record<
+        PoseChannel,
+        { id: string; range: number; bipolar: boolean }
+    > = {
+        headX: { id: "ParamAngleX", range: 30, bipolar: true },
+        headY: { id: "ParamAngleY", range: 30, bipolar: true },
+        headZ: { id: "ParamAngleZ", range: 30, bipolar: true },
+        bodyX: { id: "ParamBodyAngleX", range: 10, bipolar: true },
+        bodyY: { id: "ParamBodyAngleY", range: 10, bipolar: true },
+        bodyZ: { id: "ParamBodyAngleZ", range: 10, bipolar: true },
+        eyeX: { id: "ParamEyeBallX", range: 1, bipolar: true },
+        eyeY: { id: "ParamEyeBallY", range: 1, bipolar: true },
+        eyeSquint: { id: "ParamEyeLOpen", range: 1, bipolar: false },
+        breath: { id: "ParamBreath", range: 1, bipolar: false },
+    };
+
+    private poseCore(): {
+        setParameterValueById?: (id: string, value: number) => void;
+        getParameterValueById?: (id: string) => number;
+        getParameterIndex?: (id: string) => number;
+    } | null {
+        const core = (this.model as unknown as { internalModel?: { coreModel?: unknown } })?.internalModel
+            ?.coreModel;
+        return (core as ReturnType<Live2DController["poseCore"]>) ?? null;
+    }
+
+    /** Called with one pose frame, or null to hand the model back immediately. */
+    public applyPose(pose: Partial<Record<PoseChannel, number>> | null): void {
+        if (!this.model) return;
+        if (pose === null) {
+            this.releasePose();
+            return;
+        }
+        if (!this.poseDriver) {
+            this.poseDriver = { frame: 0, pose: null, receivedAt: 0, base: new Map() };
+        }
+        const driver = this.poseDriver;
+        driver.pose = pose;
+        driver.receivedAt = performance.now();
+        if (!driver.frame) {
+            driver.frame = requestAnimationFrame(() => this.tickPose());
+        }
+    }
+
+    private tickPose(): void {
+        const driver = this.poseDriver;
+        if (!driver) return;
+        driver.frame = 0;
+
+        const core = this.poseCore();
+        if (!core?.setParameterValueById || !driver.pose) {
+            this.releasePose();
+            return;
+        }
+        if (performance.now() - driver.receivedAt > Live2DController.POSE_STALE_MS) {
+            // The MOD stopped pushing (closed, reloaded, or its window was hidden).
+            this.releasePose();
+            return;
+        }
+
+        try {
+            for (const [channel, spec] of Object.entries(Live2DController.POSE_PARAMS) as [
+                PoseChannel,
+                { id: string; range: number; bipolar: boolean },
+            ][]) {
+                const raw = driver.pose[channel];
+                if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+                // A rig that lacks the parameter (our models have no torso) is skipped rather than written blind.
+                if (typeof core.getParameterIndex === "function" && core.getParameterIndex(spec.id) < 0) continue;
+                if (!driver.base.has(spec.id)) {
+                    driver.base.set(spec.id, core.getParameterValueById?.(spec.id) ?? 0);
+                }
+                const clamped = Math.max(-1, Math.min(1, raw));
+                core.setParameterValueById(spec.id, spec.bipolar ? clamped * spec.range : (clamped + 1) / 2);
+            }
+        } catch (error) {
+            console.warn("[Live2DController] Pose frame failed, releasing the model:", error);
+            this.releasePose();
+            return;
+        }
+
+        driver.frame = requestAnimationFrame(() => this.tickPose());
+    }
+
+    /** Restore every parameter the pose driver touched and stop writing. Safe to call twice. */
+    public releasePose(): void {
+        const driver = this.poseDriver;
+        if (!driver) return;
+        this.poseDriver = null;
+        if (driver.frame) cancelAnimationFrame(driver.frame);
+        const core = this.poseCore();
+        if (!core?.setParameterValueById) return;
+        for (const [id, value] of driver.base) {
+            try {
+                core.setParameterValueById(id, value);
+            } catch {
+                /* the core is gone (model switched) - nothing left to restore */
+            }
+        }
     }
 
     /**
