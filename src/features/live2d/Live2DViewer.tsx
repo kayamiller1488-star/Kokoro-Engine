@@ -326,10 +326,12 @@ const Live2DViewer = forwardRef<Live2DViewerHandle, Live2DViewerProps>(
             gazeTrackingRef.current = gazeTracking;
             if (gazeTracking) return;
             const model = modelRef.current;
-            const app = appRef.current;
-            if (!model || !app) return;
-            const { width, height } = app.screen;
-            model.focus(width / 2, height / 2);
+            if (!model) return;
+            // AIRI resets the focus target in MODEL space, not screen space:
+            // `model.focus(x, y)` normalises the point onto the unit circle, so "the centre of the
+            // canvas" is never neutral - it is a full-length look direction unless the model happens
+            // to sit exactly there. `focusController.focus(0, 0)` really is neutral.
+            model.internalModel.focusController.focus(0, 0);
         }, [gazeTracking]);
 
         useEffect(() => {
@@ -410,8 +412,8 @@ const Live2DViewer = forwardRef<Live2DViewerHandle, Live2DViewerProps>(
                     // measured on the pet window: head +16.3 deg, eyes 0.54 right, carried over from a
                     // cursor that had last been on the right of the canvas.
                     if (!gazeTrackingRef.current) {
-                        const { width, height } = app.screen;
-                        model.focus(width / 2, height / 2);
+                        // Neutral in model space - see the note on the gazeTracking effect.
+                        model.internalModel.focusController.focus(0, 0);
                     }
                     const ctrl = getActiveController();
                     if (ctrl) {

@@ -155,15 +155,34 @@
       return Math.max(-1, Math.min(1, blended * scale));
     };
 
+    // Gaze lock - AIRI's `applyLive2DFocusBias` with the target at centre and full weight, which is
+    // what its `force-view-target` default does. The head keeps its generated motion, the eyes
+    // counter-rotate by the head (and the small body share) so the gaze stays on the viewer:
+    //
+    //     gazeX = -headX - bodyX * (body/head scale = 10/30)
+    //     eyeX  = pose.eyeX + (gazeX - pose.eyeX) * weight      -> gazeX at weight 1
+    //
+    // Without it she reproduces the recording's own drift (measured eyeX mean -0.17, head mean -5 deg)
+    // and reads as looking past the owner; with it AIRI measures +0.21 on the same recording.
+    var clampAxis = function (v) { return Math.max(-1, Math.min(1, v)); };
+    var headX = get('headX');
+    var bodyX = get('bodyX');
+    var headY = get('headY');
+    var eyeX = get('eyeX');
+    var eyeY = get('eyeY');
+    var gazeWeight = state.config.gazeLock === false ? 0 : 1;
+    var gazeX = clampAxis(-headX - bodyX * (10 / 30));
+    var gazeY = clampAxis(-headY);
+
     send({
-      headX: get('headX'),
-      headY: get('headY'),
+      headX: headX,
+      headY: headY,
       headZ: get('headZ'),
-      bodyX: get('bodyX'),
+      bodyX: bodyX,
       bodyY: get('bodyY'),
       bodyZ: get('bodyZ'),
-      eyeX: get('eyeX'),
-      eyeY: get('eyeY'),
+      eyeX: eyeX + (gazeX - eyeX) * gazeWeight,
+      eyeY: eyeY + (gazeY - eyeY) * gazeWeight,
       eyeSquint: get('eyeSquint'),
       mouthForm: get('mouthForm')
     });
