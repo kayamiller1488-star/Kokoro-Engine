@@ -150,7 +150,7 @@ pub fn handle_mod_request<R: tauri::Runtime>(
                     "Content-Security-Policy",
                     "default-src 'self' mod: data: blob: 'unsafe-inline'; \
                      img-src mod: data: blob:; \
-                     media-src 'self' mod: data: blob: http://127.0.0.1:* http://localhost:*; \
+                     media-src 'self' mod: data: blob: http://127.0.0.1:* http://localhost:* https:; \
                      script-src 'self' mod: 'unsafe-inline'; \
                      style-src 'self' mod: 'unsafe-inline'; \
                      connect-src 'self' mod: http://127.0.0.1:* http://localhost:*;",

@@ -708,6 +708,41 @@
       window.addEventListener("keydown", retry, { once: true });
     }
   });
+
+  // ---- music hand: play what the hands server announces, INSIDE this page ----
+  // Chromium's echo canceller only sees audio played in this document, so music played from a separate
+  // player is transcribed by her own ears ('The.', '我想。') and becomes a phantom user turn. Playing it
+  // here keeps the mic clean, exactly like her own voice.
+  (function musicBridge() {
+    const el = document.createElement("audio");
+    el.id = "va-music";
+    el.preload = "auto";
+    el.volume = 0.32;
+    document.body.appendChild(el);
+    let src = "";
+    window.__vaMusic = el;
+    const poll = async () => {
+      try {
+        const r = await fetch("http://127.0.0.1:9884/state", { cache: "no-store" });
+        const s = await r.json();
+        if (s.playing && s.src && s.src !== src) {
+          src = s.src;
+          el.src = src;
+          el.play().catch(() => {});
+          say("music: " + (s.title || "playing"));
+        } else if (!s.playing && src) {
+          el.pause();
+          el.removeAttribute("src");
+          el.load();
+          src = "";
+          say("music: stopped");
+        }
+        if (src) el.volume = state.turnOpen ? 0.08 : 0.32;   // duck under her own voice
+      } catch (_) {}
+      setTimeout(poll, 1500);
+    };
+    poll();
+  })();
 })();
 </script>
 </body>
