@@ -517,10 +517,16 @@
   // arrive - 2-4 s of dead air that reads as "she did not hear me". If no words arrive shortly after a
   // turn starts, say something short in her own voice; the real reply simply queues behind it.
   const PLACEHOLDER_MS = 1100;          // measured TTFT ~850 ms, so plain chat never triggers this
+  // OFF on the owner's instruction. The idea was to fill the dead air of a TOOL turn, but nothing tells this frame
+  // that a tool call is in flight (the app emits no tool event to mods), so the only thing it can measure is
+  // "no words yet" — which is also what a slow plain reply looks like. Result: "let me take a look" in ordinary
+  // conversation. Flip to true to restore it.
+  const PLACEHOLDER_ENABLED = false;
   let placeholderTimer = 0;
   const PLACEHOLDERS = { zh: ["让我看一下。", "我查查看。", "稍等我一下。"], other: ["Let me take a look.", "One moment."] };
 
   function armPlaceholder(text) {
+    if (!PLACEHOLDER_ENABLED) return;
     clearTimeout(placeholderTimer);
     const zh = /[\u4e00-\u9fff]/.test(text || "");
     const list = zh ? PLACEHOLDERS.zh : PLACEHOLDERS.other;
@@ -717,11 +723,17 @@
   });
   // The chat mic button is the single switch: off must actually stop capture, on
   // must reopen it. Without this the icon said "off" while the frame kept hearing.
-  // Language hint for the ears: "" = auto. A pinned language is what turns
-  // 'Knaan.' into 'かなちゃん。' when a short Japanese phrase is too quiet to
-  // be auto-detected. Costs a second recognizer (~270 MB) only when pinned.
+  // Language hint for the ears: "" = auto, and auto is what we run.
+  //
+  // A pin was tried and removed: it reads EVERY utterance as that language, so with `ja` pinned the owner's English
+  // came back as katakana mush ('かなー、ちょっと少し話すぎるか?' for "can you hear me?"). Auto-detect is right for mixed
+  // speech, and the one case it failed - a short Japanese greeting decoded as Mandarin ('大大妈') - is repaired by
+  // va-ears/greeting_repair.py, which matches on syllables rather than characters. A pin is only worth its second
+  // recogniser (~270 MB) for a single-language household; keep this handler, but do not set it from a profile.
   Kokoro.on("ears", (payload) => {
-    const language = String((payload && payload.language) || "").toLowerCase();
+    const requested = String((payload && payload.language) || "").toLowerCase();
+    const language = "";
+    if (requested !== state.earLanguage && requested) say(`ears pin ignored (${requested}); staying auto`);
     if (language !== state.earLanguage) {
       state.earLanguage = language;
       say(`ears language -> ${language || "auto"}`);

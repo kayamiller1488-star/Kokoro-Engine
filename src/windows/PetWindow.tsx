@@ -113,6 +113,32 @@ export default function PetWindow() {
     const userScaleMultiplierRef = useRef(1);
     const hasSavedSizeRef = useRef(false);
     const [configLoaded, setConfigLoaded] = useState(false);
+
+    // Cue playback. The backend infers a cue after each reply (fallback cue analysis) and emits
+    // `chat-cue`; in 0.4.6 nothing consumed that event, so cues were computed and dropped and no
+    // expression ever played. Forward it to the controller, which resolves it through the model's
+    // cue_map (expression or motion group).
+    useEffect(() => {
+        let unlisten: (() => void) | undefined;
+        let disposed = false;
+        listen<{ cue?: string | null }>("chat-cue", (ev) => {
+            const cue = ev.payload?.cue?.trim();
+            (window as unknown as { __cueHits?: number }).__cueHits =
+                (((window as unknown as { __cueHits?: number }).__cueHits) ?? 0) + 1;
+            if (cue) void viewerRef.current?.playCue(cue);
+        }).then((fn) => {
+            if (disposed) { fn(); return; }
+            unlisten = fn;
+            (window as unknown as { __cueSub?: string }).__cueSub = "listening";
+        }).catch((error) => {
+            (window as unknown as { __cueSub?: string }).__cueSub = "failed: " + String(error).slice(0, 80);
+            console.warn("[PetWindow] Failed to subscribe to chat-cue:", error);
+        });
+        return () => {
+            disposed = true;
+            unlisten?.();
+        };
+    }, []);
     const [scaleMultiplier, setScaleMultiplier] = useState(1);
     const [renderFps, setRenderFps] = useState(60);
     const { isStreaming, sendMessage } = usePetChat();

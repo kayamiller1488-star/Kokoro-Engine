@@ -30,6 +30,12 @@ pub struct Live2dCueBinding {
     pub motion_group: Option<String>,
     #[serde(default)]
     pub exclude_from_prompt: bool,
+    /// Seconds the expression stays before the frontend releases it back to neutral. Omitted -> the frontend's
+    /// default hold; 0 -> keep it applied until another cue replaces it (wardrobe props). This field exists on the
+    /// Rust side only so a profile round-trip preserves it: without it the save path dropped the key, and every
+    /// cue silently fell back to the default hold - measured as glasses coming off after 3 s.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hold_seconds: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -727,6 +733,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("FlickUp".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -735,6 +742,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("FlickDown".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -743,6 +751,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("Tap".to_string()),
                     exclude_from_prompt: true,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -751,6 +760,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("Tap".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -759,6 +769,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("Idle".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -767,6 +778,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("Idle".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -775,6 +787,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("FlickDown".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
             (
@@ -783,6 +796,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                     expression: None,
                     motion_group: Some("Flick".to_string()),
                     exclude_from_prompt: false,
+                    hold_seconds: None,
                 },
             ),
         ]),

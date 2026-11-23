@@ -1,4 +1,5 @@
 import { Live2DModel } from "pixi-live2d-display/cubism4";
+import type { Live2dCueBinding } from "@/lib/kokoro-bridge";
 import { LipSyncProcessor } from "./LipSyncProcessor";
 import { audioPlayer } from "../../core/services";
 import type { AudioAnalysis } from "../../lib/audio-player";
@@ -33,12 +34,20 @@ type ExpressionDefinition = {
 };
 
 export class Live2DController {
+    /** How long an emotional expression stays before it is released back to neutral, unless the cue says otherwise. */
+    private static readonly DEFAULT_EXPRESSION_HOLD_MS = 3000;
     private model: Live2DModel | null = null;
     private lipSync: LipSyncProcessor;
     private currentCue: CueName | null = null;
     private currentState: AnimationState = "Idle";
     private modelPath: string | null = null;
     private modelProfile: Live2dModelProfile | null = null;
+    private expressionHoldTimer: number | null = null;
+    private expressionDriver: {
+        expression: unknown;
+        frame: number;
+        params: { id: string; base: number }[];
+    } | null = null;
     private profileRequestId = 0;
 
     public onModelLoaded?: (model: Live2DModel) => void;
@@ -62,9 +71,45 @@ export class Live2DController {
     public setModel(model: Live2DModel) {
         this.model = model;
         this.onModelLoaded?.(model);
+        this.patchCubism5MotionQueues();
         console.log("[Live2DController] Available expressions:", this.getAvailableExpressions());
         console.log("[Live2DController] Available motion groups:", this.getAvailableMotionGroups());
+        this.exposeForDebug();
         this.playIdleMotion();
+    }
+
+    /**
+     * Adapter for Cubism 4 vs 5. `pixi-live2d-display@0.4` drives motions and expressions through
+     * `queueManager.updateParam(model)`, an API the Cubism 4 SDK has and the 5.x SDK renamed to
+     * `doUpdateMotion(model, userTimeSeconds)`. The app ships Core/Framework 5.1, so that call throws on every
+     * frame inside the render loop and is swallowed — expressions load (weight 1, correct parameters) and never
+     * touch a parameter, and no motion group ever plays. Bridging the name restores both, for every model.
+     */
+    private patchCubism5MotionQueues() {
+        try {
+            const motionManager = (this.model as unknown as {
+                internalModel?: { motionManager?: Record<string, unknown> };
+            })?.internalModel?.motionManager;
+            if (!motionManager) return;
+
+            const candidates: unknown[] = [
+                motionManager.queueManager,
+                (motionManager.expressionManager as { queueManager?: unknown } | undefined)?.queueManager,
+            ];
+
+            for (const candidate of candidates) {
+                const queue = candidate as
+                    | { updateParam?: (model: unknown) => unknown; doUpdateMotion?: (model: unknown, t: number) => unknown }
+                    | undefined;
+                if (!queue || typeof queue.updateParam === "function") continue;
+                if (typeof queue.doUpdateMotion !== "function") continue;
+                queue.updateParam = function (this: { doUpdateMotion?: (m: unknown, t: number) => unknown }, m: unknown) {
+                    return this.doUpdateMotion?.(m, performance.now() / 1000);
+                };
+            }
+        } catch (error) {
+            console.warn("[Live2DController] Failed to patch motion queues for Cubism 5:", error);
+        }
     }
 
     public async loadProfileForModel(modelPath: string | null) {
@@ -94,6 +139,20 @@ export class Live2DController {
 
     public getModelProfile(): Live2dModelProfile | null {
         return this.modelProfile;
+    }
+
+    // Debug hook, off by default: `localStorage.__l2dDebug = "1"` exposes the controller and the pixi model
+    // so the expression path can be inspected from the devtools console. Nothing is exposed without the flag.
+    private exposeForDebug() {
+        try {
+            if (typeof window === "undefined") return;
+            if (window.localStorage?.getItem("__l2dDebug") !== "1") return;
+            const w = window as unknown as { __l2dCtrl?: unknown; __live2dModel?: unknown };
+            w.__l2dCtrl = this;
+            w.__live2dModel = this.model;
+        } catch {
+            /* debug hook only — never break rendering for it */
+        }
     }
 
     public getModel(): Live2DModel | null {
@@ -174,10 +233,8 @@ export class Live2DController {
 
         try {
             if (expressionIndex >= 0) {
-                const playedByIndex = await this.model.expression(expressionIndex);
-                if (playedByIndex) {
-                    return true;
-                }
+                const driver = await this.startExpressionDriver(expressionIndex);
+                if (driver) return true;
             }
 
             return await this.model.expression(trimmed);
@@ -185,6 +242,151 @@ export class Live2DController {
             console.warn(`[Live2DController] Failed to play expression '${trimmed}':`, error);
             return false;
         }
+    }
+
+    /**
+     * Drives an expression ourselves because `pixi-live2d-display@0.4` cannot start motions on the Cubism 5
+     * queue (see patchCubism5MotionQueues). The expression object and its parameters come from the rig's own
+     * `.exp3.json`, so this applies the model's data — not invented values — and honours its fade times.
+     */
+    private async startExpressionDriver(index: number): Promise<boolean> {
+        const manager = (this.model as unknown as {
+            internalModel?: { coreModel?: unknown; motionManager?: { expressionManager?: Record<string, unknown> } };
+        })?.internalModel?.motionManager?.expressionManager;
+        const coreModel = (this.model as unknown as { internalModel?: { coreModel?: unknown } })?.internalModel
+            ?.coreModel;
+        if (!manager || !coreModel) return false;
+
+        const loadExpression = manager.loadExpression as ((i: number) => Promise<unknown>) | undefined;
+        let expression = (manager.expressions as unknown[] | undefined)?.[index];
+        if (!expression && typeof loadExpression === "function") {
+            expression = await loadExpression.call(manager, index);
+        }
+        if (!expression) return false;
+
+        this.stopExpressionDriver();
+        try {
+            (manager.queueManager as { stopAllMotions?: () => void } | undefined)?.stopAllMotions?.();
+        } catch {
+            /* pixi's queue is unusable on Cubism 5 anyway */
+        }
+
+        const entry = {
+            _started: false,
+            _finished: false,
+            _startTime: 0,
+            _fadeInStart: 0,
+            _endTime: -1,
+            isAvailable: () => true,
+            isFinished(this: { _finished: boolean }) {
+                return this._finished;
+            },
+            isStarted(this: { _started: boolean }) {
+                return this._started;
+            },
+            setIsStarted(this: { _started: boolean }, value: boolean) {
+                this._started = value;
+            },
+            getStartTime(this: { _startTime: number }) {
+                return this._startTime;
+            },
+            setStartTime(this: { _startTime: number }, value: number) {
+                this._startTime = value;
+            },
+            getFadeInStartTime(this: { _fadeInStart: number }) {
+                return this._fadeInStart;
+            },
+            setFadeInStartTime(this: { _fadeInStart: number }, value: number) {
+                this._fadeInStart = value;
+            },
+            getEndTime(this: { _endTime: number }) {
+                return this._endTime;
+            },
+            setEndTime(this: { _endTime: number }, value: number) {
+                this._endTime = value;
+            },
+            setState() {
+                /* state weight is only used for bookkeeping inside pixi */
+            },
+            setIsFinished(this: { _finished: boolean }, value: boolean) {
+                this._finished = value;
+            },
+        };
+
+        const update = (expression as { updateParameters?: (m: unknown, e: unknown, t: number) => void })
+            .updateParameters;
+        if (typeof update !== "function") return false;
+
+        // The framework resets parameters from their saved values before applying motions/expressions each frame.
+        // We are driving outside that loop, so capture the rest pose once and restore it before every tick —
+        // otherwise an "Add" expression accumulates until it clamps at the parameter's limit.
+        const core = coreModel as {
+            getParameterValueById?: (id: string) => number;
+            setParameterValueById?: (id: string, value: number) => void;
+        };
+        const parameterIds = ((expression as { _parameters?: { parameterId?: unknown }[] })._parameters ?? [])
+            .map((p) => (typeof p.parameterId === "string" ? p.parameterId : undefined))
+            .filter((id): id is string => Boolean(id));
+        const params = parameterIds.map((id) => ({
+            id,
+            base: typeof core.getParameterValueById === "function" ? core.getParameterValueById(id) : 0,
+        }));
+
+        const tick = () => {
+            const driver = this.expressionDriver;
+            if (!driver || driver.expression !== expression) return;
+            try {
+                for (const param of driver.params) {
+                    core.setParameterValueById?.(param.id, param.base);
+                }
+                update.call(expression, coreModel, entry, performance.now() / 1000);
+            } catch (error) {
+                console.warn("[Live2DController] Expression tick failed, stopping driver:", error);
+                this.stopExpressionDriver();
+                return;
+            }
+            driver.frame = requestAnimationFrame(tick);
+        };
+
+        this.expressionDriver = { expression, frame: requestAnimationFrame(tick), params };
+        return true;
+    }
+
+    private stopExpressionDriver() {
+        if (!this.expressionDriver) return;
+        cancelAnimationFrame(this.expressionDriver.frame);
+        const core = (this.model as unknown as { internalModel?: { coreModel?: unknown } })?.internalModel
+            ?.coreModel as { setParameterValueById?: (id: string, value: number) => void } | undefined;
+        for (const param of this.expressionDriver.params) {
+            core?.setParameterValueById?.(param.id, param.base);
+        }
+        this.expressionDriver = null;
+    }
+
+    /**
+     * Release an expression after a bounded hold.
+     *
+     * Cubism keeps an expression applied until something stops it, and the driver above simply ran until the next
+     * cue replaced it. One `silly` cue therefore left Kana's face in 呆猫 for the rest of the session - measured by
+     * the owner as "her face is always on silly mode". Emotions get a short hold; a cue can opt out with
+     * `hold_seconds: 0` in the profile's cue_map, which is what wardrobe props need (glasses, apron, cat filter are
+     * meant to stay on until they are taken off).
+     */
+    private scheduleExpressionRelease(binding?: Live2dCueBinding) {
+        if (this.expressionHoldTimer !== null) {
+            window.clearTimeout(this.expressionHoldTimer);
+            this.expressionHoldTimer = null;
+        }
+        const configured = binding?.hold_seconds;
+        const holdMs = typeof configured === "number"
+            ? configured * 1000
+            : Live2DController.DEFAULT_EXPRESSION_HOLD_MS;
+        if (holdMs <= 0) return;                 // 0 = keep it on until another cue replaces it
+        this.expressionHoldTimer = window.setTimeout(() => {
+            this.expressionHoldTimer = null;
+            this.stopExpressionDriver();
+            this.currentCue = "";
+        }, holdMs);
     }
 
     public async playMotionGroupByName(group: string, index?: number, priority: number = MOTION_PRIORITY.NORMAL) {
@@ -230,6 +432,7 @@ export class Live2DController {
         }
 
         if (played) {
+            this.scheduleExpressionRelease(binding);
             return true;
         }
 

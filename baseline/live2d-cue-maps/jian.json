@@ -1,0 +1,46 @@
+{
+  "model": "简 (Sasha)",
+  "verified": "2026-11-23: cue -> expression -> visible head motion (proud => ParamAngleY 12, ParamAngleZ 5)",
+  "note": "re-apply after re-importing the rig; model3.json Expressions entries are required or the framework never loads the .exp3 files",
+  "expressions_registered": [
+    {
+      "Name": "tilt_shy",
+      "File": "tilt_shy.exp3.json"
+    },
+    {
+      "Name": "look_down",
+      "File": "look_down.exp3.json"
+    },
+    {
+      "Name": "glance_away",
+      "File": "glance_away.exp3.json"
+    },
+    {
+      "Name": "chin_up",
+      "File": "chin_up.exp3.json"
+    }
+  ],
+  "cue_map": {
+    "sad": {
+      "expression": "look_down",
+      "motion_group": null,
+      "exclude_from_prompt": false
+    },
+    "shy": {
+      "expression": "tilt_shy",
+      "motion_group": null,
+      "exclude_from_prompt": false
+    },
+    "sulky": {
+      "expression": "glance_away",
+      "motion_group": null,
+      "exclude_from_prompt": false
+    },
+    "proud": {
+      "expression": "chin_up",
+      "motion_group": null,
+      "exclude_from_prompt": false
+    }
+  },
+  "semantic_cue_map": {}
+}

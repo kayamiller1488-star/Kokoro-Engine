@@ -785,6 +785,11 @@ export interface Live2dCueBinding {
     expression?: string | null;
     motion_group?: string | null;
     exclude_from_prompt?: boolean;
+    /**
+     * Seconds an expression stays applied before it is released back to neutral. Omitted -> the controller's default
+     * hold; 0 -> keep it on until another cue replaces it (wardrobe props: glasses, apron, cat filter).
+     */
+    hold_seconds?: number;
 }
 
 export const BUILTIN_LIVE2D_MODEL_PATH = "__builtin__/hiyori/hiyori_pro_t11.model3.json";

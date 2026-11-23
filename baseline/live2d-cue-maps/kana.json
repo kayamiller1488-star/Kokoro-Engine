@@ -1,0 +1,31 @@
+{
+  "model": "Kana (kamiya-hakuko / 面饼0)",
+  "wired": "2026-11-23, not yet verified visually",
+  "expressions_registered": [
+    [
+      "silly",
+      "呆猫"
+    ],
+    [
+      "amused",
+      "呆猫眼珠摇晃"
+    ],
+    [
+      "shy",
+      "拍照"
+    ],
+    [
+      "glasses",
+      "眼镜"
+    ],
+    [
+      "apron",
+      "围裙"
+    ],
+    [
+      "cat",
+      "猫咪滤镜"
+    ]
+  ],
+  "note": "metadata: 呆猫=傻饼, 拍照 includes 脸红 (blush) 0.42; props: 围裙/眼镜/猫咪滤镜/拿笔/点一下"
+}
