@@ -99,6 +99,7 @@
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
     win: [], bargeWin: [], forcedThreshold: 0, released: 0, bargeIn: false, playbackStartedAt: 0,
     currentTurnId: "", interruptedTurn: "", turnOpen: false, turnStartedAt: 0, lastDeltaAt: 0,
+    turnArmedAt: 0, placeholderAt: 0,
     bargeMaxLevel: 0, bargeLoudFrames: 0,
     floor: ABS_MIN_RMS, meter: [], lastPlaybackEnd: 0, guardMs: PLAYBACK_GUARD_MS,
     heard: [], spoken: 0, lastWav: null, lastWavSeconds: 0,
@@ -118,6 +119,10 @@
   });
 
   window.__vaVoice = state;
+  window.__vaPlaceholder = () => ({ at: state.placeholderAt, armed: state.turnArmedAt });
+  // Test hook: a CDP-injected turn skips the ear path where armPlaceholder() normally runs, so a
+  // simulated turn has to arm it the same way a real utterance does.
+  window.__vaArmPlaceholder = (text) => armPlaceholder(text || "");
   window.__vaVoiceResetLevels = () => { state.maxLevel = 0; state.maxThreshold = 0; };
   window.__vaVoiceDebug = {
     start: () => startAudio(),
@@ -466,6 +471,7 @@
       say(`heard (${ms} ms, ${captured.seconds}s, rms ${captured.rms}, peak ${captured.peak}, gain x${captured.gain}): ${raw || "<nothing>"}`);
       announce({ heard: text, ms, captured });
       if (!text) return;
+      armPlaceholder(text);
       await Kokoro.invoke("mod_send_message", { message: text });
     } catch (err) {
       say("utterance failed: " + (err && err.message || err));
@@ -504,6 +510,44 @@
       }
     }
     return buffer;
+  }
+
+  // ---- placeholder speech -------------------------------------------------
+  // A tool turn has a hole in it: leg 1 emits only a tool call, the tool runs, and only then do words
+  // arrive - 2-4 s of dead air that reads as "she did not hear me". If no words arrive shortly after a
+  // turn starts, say something short in her own voice; the real reply simply queues behind it.
+  const PLACEHOLDER_MS = 1100;          // measured TTFT ~850 ms, so plain chat never triggers this
+  let placeholderTimer = 0;
+  const PLACEHOLDERS = { zh: ["让我看一下。", "我查查看。", "稍等我一下。"], other: ["Let me take a look.", "One moment."] };
+
+  function armPlaceholder(text) {
+    clearTimeout(placeholderTimer);
+    const zh = /[\u4e00-\u9fff]/.test(text || "");
+    const list = zh ? PLACEHOLDERS.zh : PLACEHOLDERS.other;
+    state.turnArmedAt = Date.now();
+    placeholderTimer = setTimeout(() => {
+      if (!state.turnArmedAt) return;
+      if (state.lastDeltaAt >= state.turnArmedAt) return;   // words already arrived
+      if (playing || queue.length) return;                   // do not talk over her own sentence
+      const phrase = list[Math.floor(Math.random() * list.length)];
+      state.placeholderAt = Date.now();
+      say("placeholder: " + phrase);
+      enqueue(phrase);
+      // One beat is not enough for a hand-off to a slower brain: if words still have not arrived a few
+      // seconds later, say so once more instead of leaving dead air.
+      placeholderTimer = setTimeout(() => {
+        if (state.lastDeltaAt >= state.turnArmedAt) return;
+        const again = zh ? "还在查，再等我一下。" : "Still checking, one more moment.";
+        say("placeholder (second beat)");
+        enqueue(again);
+      }, 4200);
+    }, PLACEHOLDER_MS);
+  }
+
+  function disarmPlaceholder() {
+    clearTimeout(placeholderTimer);
+    placeholderTimer = 0;
+    state.turnArmedAt = 0;
   }
 
   const queue = [];
@@ -616,6 +660,7 @@
     lastDeltaAt = now;
     if (!state.turnOpen) { state.turnOpen = true; state.turnStartedAt = Date.now(); }
     state.lastDeltaAt = Date.now();
+    if (payload.delta) disarmPlaceholder();
     pending += payload.delta || "";
     const match = pending.match(/^([\s\S]*?[.!?。！？\n])(\s*)([\s\S]*)$/);
     if (match) {
@@ -625,6 +670,7 @@
   }
 
   function onDone(payload) {
+    disarmPlaceholder();
     state.turnOpen = false;
     state.bargeMaxLevel = 0;
     state.bargeLoudFrames = 0;
