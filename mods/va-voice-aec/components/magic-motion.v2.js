@@ -165,14 +165,25 @@
     // Without it she reproduces the recording's own drift (measured eyeX mean -0.17, head mean -5 deg)
     // and reads as looking past the owner; with it AIRI measures +0.21 on the same recording.
     var clampAxis = function (v) { return Math.max(-1, Math.min(1, v)); };
+    // Pitch limit. The eyes can only counter-rotate so far (ParamEyeBallY saturates near +-0.6), so a
+    // head that cranes 16 deg up leaves the gaze genuinely pointing up no matter what the lock does -
+    // measured: headY reached +0.550 (+16.5 deg) against AIRI's +14.6 deg ceiling, and the owner reads
+    // that instant as "looking somewhere upwards" even though the look direction is level.
+    var pitchLimit = typeof state.config.pitchLimit === 'number' ? state.config.pitchLimit : 0.35;
     var headX = get('headX');
+    var headY = Math.max(-pitchLimit, Math.min(pitchLimit, get('headY')));
     var bodyX = get('bodyX');
-    var headY = get('headY');
     var eyeX = get('eyeX');
     var eyeY = get('eyeY');
     var gazeWeight = state.config.gazeLock === false ? 0 : 1;
     var gazeX = clampAxis(-headX - bodyX * (10 / 30));
-    var gazeY = clampAxis(-headY);
+    // The eye channel and the head angle are NOT the same units: ParamAngleY spans +-30 deg while
+    // ParamEyeBallY only moves the pupil a few degrees. AIRI's formula subtracts headY from eyeY at
+    // gain 1; on this rig that under-corrects by half and reads as "looking up". Measured with the
+    // head pinned at +10.5 deg: eyeY -0.35 still looks up, eyeY -0.70 reads level. So the vertical
+    // counter-rotation needs gain ~2. (Horizontal measures level at gain 1, so it stays there.)
+    var gazeGainY = typeof state.config.gazeGainY === 'number' ? state.config.gazeGainY : 2;
+    var gazeY = clampAxis(-headY * gazeGainY);
 
     send({
       headX: headX,
