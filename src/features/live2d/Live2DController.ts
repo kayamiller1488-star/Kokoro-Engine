@@ -21,6 +21,7 @@ export type PoseChannel =
     | "eyeX"
     | "eyeY"
     | "eyeSquint"
+    | "mouthForm"
     | "breath";
 
 export type IdleBehavior =
@@ -402,10 +403,11 @@ export class Live2DController {
     private static readonly POSE_STALE_MS = 400;
 
     /** Channel -> rig parameter, with the range the channel's -1..1 maps onto. `bipolar: false`
-     * means the channel is unipolar in Cubism (0..1), so -1..1 is shifted rather than scaled. */
-    private static readonly POSE_PARAMS: Record<
-        PoseChannel,
-        { id: string; range: number; bipolar: boolean }
+     * means the channel is unipolar in Cubism (0..1), so -1..1 is shifted rather than scaled.
+     * `eyeSquint` is absent on purpose: it is a *closing* amount that multiplies both eyes, so it
+     * is applied separately below rather than written straight into one parameter. */
+    private static readonly POSE_PARAMS: Partial<
+        Record<PoseChannel, { id: string; range: number; bipolar: boolean }>
     > = {
         headX: { id: "ParamAngleX", range: 30, bipolar: true },
         headY: { id: "ParamAngleY", range: 30, bipolar: true },
@@ -415,7 +417,7 @@ export class Live2DController {
         bodyZ: { id: "ParamBodyAngleZ", range: 10, bipolar: true },
         eyeX: { id: "ParamEyeBallX", range: 1, bipolar: true },
         eyeY: { id: "ParamEyeBallY", range: 1, bipolar: true },
-        eyeSquint: { id: "ParamEyeLOpen", range: 1, bipolar: false },
+        mouthForm: { id: "ParamMouthForm", range: 1, bipolar: true },
         breath: { id: "ParamBreath", range: 1, bipolar: false },
     };
 
@@ -464,6 +466,20 @@ export class Live2DController {
         }
 
         try {
+            // Eye closing is multiplicative in Cubism (and AIRI maps it the same way): the channel
+            // is "how closed", so the parameter that survives is 1 - squint, on both eyes.
+            const squint = driver.pose.eyeSquint;
+            if (typeof squint === "number" && Number.isFinite(squint)) {
+                const open = Math.max(0, Math.min(1, 1 - Math.max(-1, Math.min(1, squint))));
+                for (const id of ["ParamEyeLOpen", "ParamEyeROpen"]) {
+                    if (typeof core.getParameterIndex === "function" && core.getParameterIndex(id) < 0) continue;
+                    if (!driver.base.has(id)) {
+                        driver.base.set(id, core.getParameterValueById?.(id) ?? 1);
+                    }
+                    core.setParameterValueById(id, open);
+                }
+            }
+
             for (const [channel, spec] of Object.entries(Live2DController.POSE_PARAMS) as [
                 PoseChannel,
                 { id: string; range: number; bipolar: boolean },
