@@ -1531,5 +1531,18 @@
                 "collapsed_description": "先にチャットパネルを開くと、入力欄に文字を入力できます。"
             }
         }
+    },
+    "pet": {
+        "resize_window": "ウィンドウサイズを変更",
+        "exit_resize_mode": "サイズ変更を終了",
+        "hide_model": "フローティングモデルを隠す",
+        "open_main_window": "メイン画面を開く",
+        "drag_hint": "ドラッグ中 · 離すと終了",
+        "resize_mode": "サイズ変更モード",
+        "resize_hint": "端をドラッグしてサイズ変更 · Ctrl+スクロールで位置調整",
+        "chat_placeholder": "何か話しかけて...",
+        "send": "送信",
+        "collapse": "折りたたむ ▲",
+        "expand": "展開 ▼"
     }
 }

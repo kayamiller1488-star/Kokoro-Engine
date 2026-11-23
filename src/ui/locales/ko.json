@@ -1531,5 +1531,18 @@
                 "collapsed_description": "먼저 채팅 패널을 펼친 뒤 입력창에 글을 입력하세요."
             }
         }
+    },
+    "pet": {
+        "resize_window": "창 크기 조정",
+        "exit_resize_mode": "크기 조정 종료",
+        "hide_model": "플로팅 모델 숨기기",
+        "open_main_window": "메인 화면 열기",
+        "drag_hint": "드래그 중 · 놓으면 종료",
+        "resize_mode": "크기 조정 모드",
+        "resize_hint": "가장자리를 드래그해 크기 조정 · Ctrl+스크롤로 미세 조정",
+        "chat_placeholder": "무엇이든 말해보세요...",
+        "send": "보내기",
+        "collapse": "접기 ▲",
+        "expand": "펼치기 ▼"
     }
 }

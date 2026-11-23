@@ -1533,5 +1533,18 @@
                 "collapsed_description": "先展開聊天面板，然後就可以在聊天框輸入文字。"
             }
         }
+    },
+    "pet": {
+        "resize_window": "調整視窗大小",
+        "exit_resize_mode": "退出調整大小模式",
+        "hide_model": "隱藏懸浮模型",
+        "open_main_window": "開啟主介面",
+        "drag_hint": "拖曳中 · 放開結束",
+        "resize_mode": "調整大小模式",
+        "resize_hint": "拖曳邊緣調整視窗大小 · Ctrl+滾輪微調模型",
+        "chat_placeholder": "說點什麼...",
+        "send": "傳送",
+        "collapse": "收合 ▲",
+        "expand": "展開 ▼"
     }
 }

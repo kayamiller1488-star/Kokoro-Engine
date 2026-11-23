@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 interface MessageBubbleProps {
     text: string;
@@ -7,6 +8,7 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ text, visible }: MessageBubbleProps) {
+    const { t } = useTranslation();
     const [displayed, setDisplayed] = useState("");
     const [expanded, setExpanded] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -83,7 +85,7 @@ export default function MessageBubble({ text, visible }: MessageBubbleProps) {
                         <span>Kokoro</span>
                         {isLong && (
                             <span style={{ fontSize: "10px", opacity: 0.5 }}>
-                                {expanded ? "收起 ▲" : "展开 ▼"}
+                                {expanded ? t("pet.collapse") : t("pet.expand")}
                             </span>
                         )}
                     </div>

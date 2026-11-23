@@ -1542,5 +1542,18 @@
                 "collapsed_description": "Expand the chat panel first, then you can type in the chat box."
             }
         }
+    },
+    "pet": {
+        "resize_window": "Resize window",
+        "exit_resize_mode": "Exit resize mode",
+        "hide_model": "Hide floating model",
+        "open_main_window": "Open main window",
+        "drag_hint": "Dragging · release to stop",
+        "resize_mode": "Resize mode",
+        "resize_hint": "Drag the edges to resize · Ctrl+scroll to nudge the model",
+        "chat_placeholder": "Say something...",
+        "send": "Send",
+        "collapse": "Collapse ▲",
+        "expand": "Expand ▼"
     }
 }

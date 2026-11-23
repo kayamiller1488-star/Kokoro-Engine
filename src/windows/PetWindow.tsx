@@ -2,6 +2,7 @@ import { ttsService } from "../core/services";
 // pattern: Imperative Shell
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
@@ -38,6 +39,7 @@ interface Live2dSelectionEvent {
 }
 
 export default function PetWindow() {
+    const { t } = useTranslation();
     useEffect(() => { void ttsService.init(); return () => ttsService.cleanup(); }, []);
     // Get window reference once at module load, not on every render
     const currentWindowRef = useRef(getCurrentWindow());
@@ -542,18 +544,20 @@ export default function PetWindow() {
 
     const contextMenuItems = useMemo(() => [
         {
-            label: isResizeMode ? "退出调整大小模式" : "调整窗口大小",
+            // These three were hardcoded Chinese in the upstream ship, so the right-click menu stayed
+            // Chinese under every locale. They are translated keys now.
+            label: isResizeMode ? t("pet.exit_resize_mode") : t("pet.resize_window"),
             onClick: () => {
                 setIsResizeMode(!isResizeMode);
                 setContextMenu(m => ({ ...m, visible: false }));
             }
         },
-        { label: "隐藏悬浮模型", onClick: () => invoke("hide_pet_window").catch(console.error) },
+        { label: t("pet.hide_model"), onClick: () => invoke("hide_pet_window").catch(console.error) },
         {
-            label: "打开主界面",
+            label: t("pet.open_main_window"),
             onClick: () => getCurrentWindow().emit("show-main-window", {}).catch(console.error),
         },
-    ], [isResizeMode]);
+    ], [isResizeMode, t]);
 
     return (
         <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", background: "transparent" }}>
@@ -583,7 +587,7 @@ export default function PetWindow() {
                         backdropFilter: "blur(8px)",
                         pointerEvents: "none",
                     }}>
-                        拖动中 · 松手退出
+                        {t("pet.drag_hint")}
                     </div>
                 )}
             </div>
@@ -616,9 +620,9 @@ export default function PetWindow() {
                         zIndex: 200,
                         textAlign: "center",
                     }}>
-                        <div>调整大小模式</div>
+                        <div>{t("pet.resize_mode")}</div>
                         <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.8 }}>
-                            拖动边缘调整窗口大小 · Ctrl+滚轮微调模型
+                            {t("pet.resize_hint")}
                         </div>
                     </div>
                 </>
@@ -663,7 +667,7 @@ export default function PetWindow() {
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="说点什么..."
+                            placeholder={t("pet.chat_placeholder")}
                             disabled={isStreaming}
                             style={{
                                 flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none",
@@ -679,7 +683,7 @@ export default function PetWindow() {
                                 color: "#fff", padding: "4px 12px", cursor: "pointer", fontSize: "12px",
                             }}
                         >
-                            发送
+                            {t("pet.send")}
                         </button>
                     </div>
                 </div>
