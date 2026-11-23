@@ -16,6 +16,11 @@
   var SAMPLE_MS = 1000 / 30;
   var FADE_IN_MS = 1600;
   var FADE_OUT_MS = 3000;
+  // AIRI's output-filter cutoff: the smallest normalised change that is allowed to move a channel.
+  // Without it the EMA chases the generator's per-frame noise and the result reads as a tremor -
+  // a puppeteer with a shaking hand - because a sub-degree wiggle every 33 ms never settles.
+  // 0.0575 normalised is ~1.7 degrees of head at the 30 degree scale.
+  var CUTOFF = 0.0575;
 
   var PROFILES = {
     calm: 'magic/var-idle-calm.json',
@@ -60,7 +65,12 @@
 
   function ensure(key, model) {
     if (state.models[key]) return state.models[key];
-    var entry = { model: model, frames: [], smooth: model.intercept.slice() };
+    var entry = {
+      model: model,
+      frames: [],
+      smooth: model.intercept.slice(),
+      accepted: model.intercept.slice()   // cutoff filter state, per channel
+    };
     for (var i = 0; i < model.order; i++) entry.frames.push(model.intercept.slice());
     state.models[key] = entry;
     return entry;
@@ -83,7 +93,14 @@
       out[n] = Math.max(-1, Math.min(1, out[n]));
     }
     var a = model.smoothingDefault;
-    for (var s = 0; s < D; s++) entry.smooth[s] = a * entry.smooth[s] + (1 - a) * out[s];
+    // Two stages, in AIRI's order: a cutoff deadband that refuses sub-threshold changes, then the
+    // EMA that eases the accepted target. The EMA alone still tracks the noise, just softer.
+    for (var c = 0; c < D; c++) {
+      if (Math.abs(out[c] - entry.accepted[c]) >= CUTOFF) entry.accepted[c] = out[c];
+    }
+    for (var s = 0; s < D; s++) {
+      entry.smooth[s] = a * entry.smooth[s] + (1 - a) * entry.accepted[s];
+    }
     entry.frames.push(out);
     if (entry.frames.length > model.order) entry.frames.shift();
     return entry.smooth;
