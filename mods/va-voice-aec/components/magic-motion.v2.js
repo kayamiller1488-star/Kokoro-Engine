@@ -179,14 +179,16 @@
     // Same unit mismatch on the horizontal axis: a head turn of 10 deg needs far more than 0.33 of
     // eye travel to keep the gaze level, so gain 1 leaves her looking the way the head turned
     // (the owner sees "upper left" on a rig whose rest pose measures exactly neutral).
-    var gazeGainX = typeof state.config.gazeGainX === 'number' ? state.config.gazeGainX : 2;
+    // AIRI's measured live relationship (read from its own renderer): eyeX = -headX exactly, i.e.
+    // counterStrength 1. An earlier 2x gain here was chasing a screenshot reading, not a measurement.
+    var gazeGainX = typeof state.config.gazeGainX === 'number' ? state.config.gazeGainX : 1;
     var gazeX = clampAxis((-headX - bodyX * (10 / 30)) * gazeGainX);
     // The eye channel and the head angle are NOT the same units: ParamAngleY spans +-30 deg while
     // ParamEyeBallY only moves the pupil a few degrees. AIRI's formula subtracts headY from eyeY at
     // gain 1; on this rig that under-corrects by half and reads as "looking up". Measured with the
     // head pinned at +10.5 deg: eyeY -0.35 still looks up, eyeY -0.70 reads level. So the vertical
     // counter-rotation needs gain ~2. (Horizontal measures level at gain 1, so it stays there.)
-    var gazeGainY = typeof state.config.gazeGainY === 'number' ? state.config.gazeGainY : 2;
+    var gazeGainY = typeof state.config.gazeGainY === 'number' ? state.config.gazeGainY : 1;
     var gazeY = clampAxis(-headY * gazeGainY);
 
     send({
