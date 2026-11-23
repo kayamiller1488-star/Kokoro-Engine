@@ -189,7 +189,11 @@
     // head pinned at +10.5 deg: eyeY -0.35 still looks up, eyeY -0.70 reads level. So the vertical
     // counter-rotation needs gain ~2. (Horizontal measures level at gain 1, so it stays there.)
     var gazeGainY = typeof state.config.gazeGainY === 'number' ? state.config.gazeGainY : 1;
-    var gazeY = clampAxis(-headY * gazeGainY);
+    // AIRI's view target is a POINT, and its app supplies that point (a spot on screen), not a zero.
+    // On a stage where the camera sits slightly above her face, a small negative target is what makes
+    // the gaze land on the viewer instead of on the horizon behind him.
+    var gazeTargetY = typeof state.config.gazeTargetY === 'number' ? state.config.gazeTargetY : -0.10;
+    var gazeY = clampAxis(gazeTargetY - headY * gazeGainY);
 
     send({
       headX: headX,
