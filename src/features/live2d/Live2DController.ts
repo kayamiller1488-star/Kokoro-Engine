@@ -330,11 +330,25 @@ export class Live2DController {
 
         const coreModel = internalModel.coreModel;
         if (coreModel) {
+            // Model-declared hidden parts (a `Groups` entry named "Hidden"). VTube Studio models use
+            // this for censor/prop layers - DeepSeek-chan ships a "face black" part that otherwise
+            // draws a black box over her mouth. Re-applied every frame because part opacity is part
+            // of the model state the runtime rewrites.
+            const hidden = this.modelProfile?.hidden_parts;
+            if (hidden && hidden.length) {
+                const setPart = (coreModel as unknown as { setPartOpacityById?: (id: string, v: number) => void }).setPartOpacityById;
+                if (setPart) {
+                    for (const partId of hidden) {
+                        try { setPart.call(coreModel, partId, 0); } catch { /* part not in this model */ }
+                    }
+                }
+            }
             coreModel.setParameterValueById("ParamMouthOpenY", mouth.mouthOpenY);
             coreModel.setParameterValueById("ParamMouthForm", mouth.mouthForm);
             // Debug hook: the value actually pushed to the rig this frame. Makes lip sync measurable
             // from the outside (window.__live2dMouth) instead of guessed at from screenshots.
-            (window as unknown as { __live2dMouth?: number; __live2dMouthForm?: number }).__live2dMouth = mouth.mouthOpenY;
+            (window as unknown as { __live2dMouth?: number; __live2dMouthForm?: number; __live2dCore?: unknown }).__live2dMouth = mouth.mouthOpenY;
+            (window as unknown as { __live2dCore?: unknown }).__live2dCore = coreModel;
             (window as unknown as { __live2dMouth?: number; __live2dMouthForm?: number }).__live2dMouthForm = mouth.mouthForm;
         }
     }

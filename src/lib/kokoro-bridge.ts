@@ -797,6 +797,8 @@ export interface Live2dModelProfile {
     available_hit_areas: string[];
     cue_map: Record<string, Live2dCueBinding>;
     semantic_cue_map: Record<string, string>;
+    /** Part ids to keep hidden (a model `Groups` entry named "Hidden"). */
+    hidden_parts?: string[];
 }
 
 export async function importLive2dZip(zipPath: string): Promise<string> {

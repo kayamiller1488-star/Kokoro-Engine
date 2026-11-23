@@ -46,6 +46,11 @@ pub struct Live2dModelProfile {
     pub cue_map: HashMap<String, Live2dCueBinding>,
     #[serde(default)]
     pub semantic_cue_map: HashMap<String, String>,
+    /// Part ids the model itself asks us to keep hidden (a `Groups` entry named "Hidden").
+    /// VTube Studio models use this for censor/prop layers that must not be drawn, e.g. the
+    /// free-tier "face black" part on DeepSeek-chan.
+    #[serde(default)]
+    pub hidden_parts: Vec<String>,
 }
 
 /// Extract a Live2D character zip package and return the path to the .model3.json file.
@@ -470,6 +475,7 @@ pub async fn save_live2d_model_profile(
         available_hit_areas: discovered.available_hit_areas,
         cue_map: profile.cue_map,
         semantic_cue_map: normalize_semantic_map(profile.semantic_cue_map),
+        hidden_parts: profile.hidden_parts,
     };
 
     save_model_profile(&models_dir, &merged)?;
@@ -521,6 +527,7 @@ fn ensure_profile_for_model(
             available_hit_areas: discovered.available_hit_areas.clone(),
             cue_map: saved.cue_map,
             semantic_cue_map: normalize_semantic_map(saved.semantic_cue_map),
+            hidden_parts: saved.hidden_parts,
         },
         Ok(None) => discovered,
         Err(err) => return Err(err),
@@ -589,6 +596,34 @@ fn discover_model_profile(
         })
         .unwrap_or_default();
 
+    let hidden_parts = json
+        .get("Groups")
+        .and_then(Value::as_array)
+        .map(|groups| {
+            groups
+                .iter()
+                .filter(|group| {
+                    group.get("Name").and_then(Value::as_str) == Some("Hidden")
+                        && group.get("Target").and_then(Value::as_str) != Some("Parameter")
+                })
+                .flat_map(|group| {
+                    group
+                        .get("Ids")
+                        .and_then(Value::as_array)
+                        .map(|ids| {
+                            ids.iter()
+                                .filter_map(Value::as_str)
+                                .map(str::trim)
+                                .filter(|id| !id.is_empty())
+                                .map(ToString::to_string)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
     Ok(Live2dModelProfile {
         version: 3,
         model_path: normalized,
@@ -597,6 +632,7 @@ fn discover_model_profile(
         available_hit_areas,
         cue_map: HashMap::new(),
         semantic_cue_map: HashMap::new(),
+        hidden_parts,
     })
 }
 
@@ -750,6 +786,7 @@ fn builtin_hiyori_profile() -> Live2dModelProfile {
                 },
             ),
         ]),
+        hidden_parts: Vec::new(),
         semantic_cue_map: HashMap::from([
             ("emotion:very_sad".to_string(), "悲".to_string()),
             ("emotion:sulking".to_string(), "平静".to_string()),
