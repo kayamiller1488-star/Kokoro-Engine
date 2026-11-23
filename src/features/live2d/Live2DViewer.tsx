@@ -225,6 +225,18 @@ const Live2DViewer = forwardRef<Live2DViewerHandle, Live2DViewerProps>(
             };
         });
 
+        // Lip-sync bridge. The MOD plays her voice (the app's own TTS playback is disabled), so the
+        // controller's own audio-player listener never fires. The MOD posts its playback RMS through
+        // the sandbox, which re-emits it here as a DOM event; feed that to the mouth.
+        useEffect(() => {
+            const onLevel = (ev: Event) => {
+                const level = (ev as CustomEvent<{ level?: number }>).detail?.level ?? 0;
+                getActiveController()?.setMouthLevel(level);
+            };
+            document.addEventListener('kokoro:mod-mouth-level', onLevel);
+            return () => document.removeEventListener('kokoro:mod-mouth-level', onLevel);
+        }, [getActiveController]);
+
         // Centralize chat-driven cue listeners here so both the main stage
         // and the floating pet window react through the same controller instance.
         useEffect(() => {

@@ -87,6 +87,8 @@ const ALLOWED_MOD_COMMANDS = new Set([
     // Cue / motion control
     'play_cue',
     'play_motion',
+    // Lip sync: the MOD owns playback, so it reports the mouth level
+    'mod_mouth_level',
     'get_live2d_model_profile',
     // Settings (scoped to MOD namespace)
     'get_mod_setting',
@@ -404,6 +406,20 @@ export const IframeSandbox = ({
                                 new CustomEvent('kokoro:mod-action', {
                                     detail: { componentId: id, action: 'send_message', data: { message } },
                                 })
+                            );
+                            respond({ id: invokePayload.id, result: { ok: true } });
+                            break;
+                        }
+
+                        // The MOD plays her voice (the app's own TTS playback is off), so lip-sync
+                        // amplitude has to come from the MOD. It posts its playback RMS here and the
+                        // Live2D view drives the mouth from it.
+                        if (cmd === 'mod_mouth_level') {
+                            const args = (invokePayload.args ?? {}) as Record<string, unknown>;
+                            const raw = typeof args.level === 'number' ? args.level : Number(args.level ?? 0);
+                            const level = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
+                            document.dispatchEvent(
+                                new CustomEvent('kokoro:mod-mouth-level', { detail: { level } })
                             );
                             respond({ id: invokePayload.id, result: { ok: true } });
                             break;

@@ -93,7 +93,7 @@
   const state = {
     characterId: "", voice: VOICE, micEnabled: true, earLanguage: "", lastEarsUrl: "",
     forSpeech: (t) => forSpeech(t),
-    ctx: null, mic: null, source: null, proc: null, sink: null,
+    ctx: null, mic: null, source: null, proc: null, sink: null, mouth: null, mouthRaf: 0, mouthLevel: 0,
     started: false, lastError: null, aec: true,
     rate: 0, ratio: 1, fps: 12, starting: null, graphs: 0,
     roll: [], utt: null, loud: 0, silent: 0, speaking: false, busy: false,
@@ -208,6 +208,15 @@
 
       if (state.micEnabled === false) { await stopAudio(); return false; }
 
+      // Her voice is played HERE, not by the app (kokoro_tts_enabled is off), so this is the only
+      // place the mouth's lip-sync can get an amplitude from. Tap the playback path once.
+      if (!state.mouth) {
+        state.mouth = state.ctx.createAnalyser();
+        state.mouth.fftSize = 256;
+        state.mouth.smoothingTimeConstant = 0.2;
+        state.mouth.connect(state.ctx.destination);
+      }
+
       state.source = state.ctx.createMediaStreamSource(state.mic);
       state.proc = state.ctx.createScriptProcessor(BLOCK, 1, 1);
       state.sink = state.ctx.createGain();
@@ -243,6 +252,8 @@
     state.started = false;
     state.graphs = Math.max(0, state.graphs - 1);
     state.roll = []; state.utt = null; state.loud = 0; state.silent = 0; state.speaking = false;
+    if (state.mouthRaf) { cancelAnimationFrame(state.mouthRaf); state.mouthRaf = 0; }
+    publishMouth(0);
   }
 
   function announce(payload) {
@@ -525,6 +536,31 @@
     }
   }
 
+  // Publish the RMS of her own playback so the Live2D mouth can follow it. Before this, the mouth
+  // never moved: the app's lip-sync listens to its own audio player, which is disabled because the
+  // MOD is the one speaking (see baseline/research-lipsync-live2d.md).
+  function startMouthMeter() {
+    if (state.mouthRaf) return;
+    const buf = new Uint8Array(state.mouth ? state.mouth.frequencyBinCount : 128);
+    let lastSent = 0;
+    const tick = () => {
+      if (!playing || !state.mouth) { state.mouthRaf = 0; publishMouth(0); return; }
+      state.mouth.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      const rmsLevel = Math.sqrt(sum / buf.length);
+      state.mouthLevel = Math.min(rmsLevel * 4, 1);
+      const now = performance.now();
+      if (now - lastSent >= 33) { lastSent = now; publishMouth(state.mouthLevel); }
+      state.mouthRaf = requestAnimationFrame(tick);
+    };
+    state.mouthRaf = requestAnimationFrame(tick);
+  }
+
+  function publishMouth(level) {
+    try { Kokoro.invoke("mod_mouth_level", { level: level || 0 }).catch(() => {}); } catch (_) {}
+  }
+
   async function drain() {
     if (playing) return;
     playing = true;
@@ -542,12 +578,13 @@
         await new Promise((resolve) => {
           const src = state.ctx.createBufferSource();
           src.buffer = buffer;
-          src.connect(state.ctx.destination);
+          src.connect(state.mouth || state.ctx.destination);
           state.currentSrc = src;
           state.playbackStartedAt = Date.now();
           state.bargeWin.length = 0;
           src.onended = () => { state.currentSrc = null; resolve(); };
           src.start();
+          startMouthMeter();
         });
         state.spoken += 1;
         state.lastPlaybackEnd = Date.now();

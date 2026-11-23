@@ -301,6 +301,22 @@ export class Live2DController {
         this.playIdleMotion();
     }
 
+    /**
+     * External lip-sync input. The MOD speaks (the app's own TTS playback is disabled), so the
+     * amplitude that used to arrive from audio-player.addAmplitudeListener has to be supplied here
+     * instead. Same contract as the internal handler: drive the mouth, and start/stop the speaking
+     * state so idle motions and expressions still react.
+     */
+    public setMouthLevel(level: number) {
+        const clamped = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0));
+        this.lipSync.updateAudio(clamped);
+        if (clamped > 0.1 && this.currentState !== "Speaking") {
+            this.startSpeaking();
+        } else if (clamped <= 0.01 && this.currentState === "Speaking") {
+            this.stopSpeaking();
+        }
+    }
+
     public update(dt: number) {
         if (!this.model) return;
 
@@ -316,6 +332,10 @@ export class Live2DController {
         if (coreModel) {
             coreModel.setParameterValueById("ParamMouthOpenY", mouth.mouthOpenY);
             coreModel.setParameterValueById("ParamMouthForm", mouth.mouthForm);
+            // Debug hook: the value actually pushed to the rig this frame. Makes lip sync measurable
+            // from the outside (window.__live2dMouth) instead of guessed at from screenshots.
+            (window as unknown as { __live2dMouth?: number; __live2dMouthForm?: number }).__live2dMouth = mouth.mouthOpenY;
+            (window as unknown as { __live2dMouth?: number; __live2dMouthForm?: number }).__live2dMouthForm = mouth.mouthForm;
         }
     }
 
