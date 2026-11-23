@@ -1,8 +1,8 @@
 {
     "id": "va-voice-aec",
-    "name": "VA Voice (AEC)",
+    "name": "VA Voice (AEC) + MAGIC Motion",
     "version": "0.2.0",
-    "description": "Owns microphone and playback inside one document so Chromium's echo cancellation applies to her own voice. Also hosts the MAGIC motion driver, which pushes generated pose frames to the app. Adds no visible UI.",
+    "description": "Microphone and playback in one document so echo cancellation applies to her own voice, plus the MAGIC motion driver: a VAR fitted to a recorded idle that generates her pose frames at 30 Hz. Adds no visible UI - the controls go in the MODEL tab.",
     "engine_version": ">=0.4.0, <0.5.0",
     "components": {
         "ModHost": "components/host.html"
