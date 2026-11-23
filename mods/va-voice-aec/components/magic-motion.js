@@ -20,6 +20,7 @@
     frames: [],          // rolling window of generated frames (13 values each)
     smooth: null,        // smoothed output, same length as a frame
     timer: null,
+    nextDue: 0,
     startedAt: 0,
     count: 0,
     noiseScale: 0.7,
@@ -120,12 +121,28 @@
     if (state.timer) return;
     state.startedAt = performance.now();
     state.count = 0;
-    state.timer = setInterval(tick, SAMPLE_MS);
+    state.nextDue = 0;
+    schedule();
     console.log('[magic] VAR idle running: order ' + state.model.order + ', noise ' + state.noiseScale);
   }
 
+  // Self-correcting schedule instead of setInterval. A plain interval accumulates drift and, after a
+  // throttled tick, fires several timers back to back, which reaches the app as uneven frame
+  // spacing - visible as the motion speeding up and slowing down. This targets absolute times and
+  // resynchronises (rather than bursting) when it falls behind.
+  function schedule() {
+    var now = performance.now();
+    if (!state.nextDue) state.nextDue = now;
+    state.nextDue += SAMPLE_MS;
+    if (state.nextDue < now) state.nextDue = now + SAMPLE_MS;
+    state.timer = setTimeout(function () {
+      tick();
+      schedule();
+    }, Math.max(0, state.nextDue - now));
+  }
+
   function stop() {
-    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    if (state.timer) { clearTimeout(state.timer); state.timer = null; }
     send(null); // hand the model back
   }
 

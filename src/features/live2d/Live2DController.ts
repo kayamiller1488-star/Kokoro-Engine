@@ -389,18 +389,51 @@ export class Live2DController {
     //
     // The pose is re-applied every render frame while it is fresh, which is deliberate: Cubism's
     // physics sways ParamAngle* on its own each frame, so a write that happens once loses the race.
+    // Frames arrive at 30 Hz but the page here renders at ~140, and holding each pose across five
+    // frames then jumping reads as stutter (measured: ParamAngleX changed on 18 of 89 render frames).
+    // So the pose is *interpolated* between arrivals: the newest frame is a target, the previous is
+    // the origin, and each render frame samples that span by elapsed time.
     // When the MOD stops (or the window is hidden and the event stream stalls) the captured rest
     // values are restored, so the model does not freeze in whatever pose it was left in.
     // -----------------------------------------------------------------------------------------
 
     private poseDriver: {
         frame: number;
-        pose: Partial<Record<PoseChannel, number>> | null;
+        from: Partial<Record<PoseChannel, number>>;
+        to: Partial<Record<PoseChannel, number>>;
+        current: Partial<Record<PoseChannel, number>>;
+        spanStart: number;
+        spanMs: number;
+        lastArrival: number;
         receivedAt: number;
         base: Map<string, number>;
     } | null = null;
 
     private static readonly POSE_STALE_MS = 400;
+    /** Fallback span when the arrival interval cannot be measured yet, and the bounds worth
+     * interpolating across. A span outside them means the frame arrived early or late, and the
+     * motion should keep its own pace rather than slowing down or lurching to catch up. */
+    private static readonly POSE_SPAN_DEFAULT_MS = 1000 / 30;
+    private static readonly POSE_SPAN_MIN_MS = 16;
+    private static readonly POSE_SPAN_MAX_MS = 50;
+
+    /** The pose the driver would display right now, interpolated between the last two arrivals. */
+    private poseAt(now: number): Partial<Record<PoseChannel, number>> {
+        const driver = this.poseDriver;
+        if (!driver) return {};
+        const alpha = driver.spanMs <= 0
+            ? 1
+            : Math.max(0, Math.min(1, (now - driver.spanStart) / driver.spanMs));
+        const out: Partial<Record<PoseChannel, number>> = {};
+        for (const key of Object.keys(driver.to) as PoseChannel[]) {
+            const target = driver.to[key];
+            if (typeof target !== "number") continue;
+            const origin = driver.from[key];
+            out[key] = typeof origin === "number" ? origin + (target - origin) * alpha : target;
+        }
+        return out;
+    }
+
 
     /** Channel -> rig parameter, with the range the channel's -1..1 maps onto. `bipolar: false`
      * means the channel is unipolar in Cubism (0..1), so -1..1 is shifted rather than scaled.
@@ -438,12 +471,36 @@ export class Live2DController {
             this.releasePose();
             return;
         }
+        const now = performance.now();
         if (!this.poseDriver) {
-            this.poseDriver = { frame: 0, pose: null, receivedAt: 0, base: new Map() };
+            this.poseDriver = {
+                frame: 0,
+                from: {},
+                to: {},
+                current: {},
+                spanStart: now,
+                spanMs: 0,
+                lastArrival: 0,
+                receivedAt: now,
+                base: new Map(),
+            };
         }
         const driver = this.poseDriver;
-        driver.pose = pose;
-        driver.receivedAt = performance.now();
+
+        // Where the model is *now* becomes the origin of the next span, so a new frame never
+        // snaps the pose backwards mid-interpolation.
+        driver.from = this.poseAt(now);
+        driver.to = pose;
+        driver.spanStart = now;
+        driver.spanMs = driver.lastArrival > 0
+            ? Math.min(
+                Live2DController.POSE_SPAN_MAX_MS,
+                Math.max(Live2DController.POSE_SPAN_MIN_MS, now - driver.lastArrival),
+            )
+            : Live2DController.POSE_SPAN_DEFAULT_MS;
+        driver.lastArrival = now;
+        driver.receivedAt = now;
+
         if (!driver.frame) {
             driver.frame = requestAnimationFrame(() => this.tickPose());
         }
@@ -455,20 +512,24 @@ export class Live2DController {
         driver.frame = 0;
 
         const core = this.poseCore();
-        if (!core?.setParameterValueById || !driver.pose) {
+        if (!core?.setParameterValueById) {
             this.releasePose();
             return;
         }
-        if (performance.now() - driver.receivedAt > Live2DController.POSE_STALE_MS) {
+        const now = performance.now();
+        if (now - driver.receivedAt > Live2DController.POSE_STALE_MS) {
             // The MOD stopped pushing (closed, reloaded, or its window was hidden).
             this.releasePose();
             return;
         }
 
+        const pose = this.poseAt(now);
+        driver.current = pose;
+
         try {
             // Eye closing is multiplicative in Cubism (and AIRI maps it the same way): the channel
             // is "how closed", so the parameter that survives is 1 - squint, on both eyes.
-            const squint = driver.pose.eyeSquint;
+            const squint = pose.eyeSquint;
             if (typeof squint === "number" && Number.isFinite(squint)) {
                 const open = Math.max(0, Math.min(1, 1 - Math.max(-1, Math.min(1, squint))));
                 for (const id of ["ParamEyeLOpen", "ParamEyeROpen"]) {
@@ -484,7 +545,7 @@ export class Live2DController {
                 PoseChannel,
                 { id: string; range: number; bipolar: boolean },
             ][]) {
-                const raw = driver.pose[channel];
+                const raw = pose[channel];
                 if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
                 // A rig that lacks the parameter (our models have no torso) is skipped rather than written blind.
                 if (typeof core.getParameterIndex === "function" && core.getParameterIndex(spec.id) < 0) continue;
