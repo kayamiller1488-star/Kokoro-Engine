@@ -41,6 +41,7 @@ import { mapLive2dModelUrl, type Live2dModelSource } from "./features/live2d/liv
 import { live2dUrl } from "./lib/utils";
 import { MEMORY_MODEL_DIALOG_EVENT } from "./lib/memory-model-gate";
 import { migrateLegacyCharactersToSqlite } from "./lib/legacy-character-migration";
+import { publishStoredMagicConfig } from "./lib/magic-config";
 import {
   APP_SETTING_KEYS,
   type AppSettingKey,
@@ -470,6 +471,15 @@ function App() {
     setGazeTracking(enabled);
     writeBooleanSetting(APP_SETTING_KEYS.gazeTracking, enabled);
   };
+
+  // The MOD frame cannot read app storage (different origin), and its settings card only exists
+  // while Settings is open. Publish the saved values from the always-mounted shell so a relaunch
+  // comes up with the owner's liveliness/strength/profile instead of the MOD's built-in defaults.
+  useEffect(() => {
+    publishStoredMagicConfig();
+    const timer = window.setInterval(() => publishStoredMagicConfig(), 1500);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     applyChatPanelWidth(chatPanelWidth);

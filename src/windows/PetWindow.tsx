@@ -13,6 +13,7 @@ import type { Live2DViewerHandle } from "../features/live2d/Live2DViewer";
 import "../ui/i18n";
 import { live2dUrl } from "../lib/utils";
 import { getCommittedCharacterRuntime, BUILTIN_LIVE2D_MODEL_PATH } from "../lib/kokoro-bridge";
+import { APP_SETTING_KEYS, readBooleanSetting } from "../lib/app-settings";
 import type { CommittedCharacterRuntime } from "../lib/kokoro-bridge";
 import { mapLive2dModelUrl } from "../features/live2d/live2d-model-url";
 import { selectPetModelSelection } from "./pet-runtime-selection";
@@ -44,6 +45,26 @@ export default function PetWindow() {
     // Get window reference once at module load, not on every render
     const currentWindowRef = useRef(getCurrentWindow());
     const currentWindow = currentWindowRef.current;
+
+    // The gaze toggle lives in the main window's settings, but this is a separate webview: it has
+    // to read the shared key itself and keep watching it, or the pet keeps following the cursor
+    // after the owner has switched tracking off.
+    const [gazeTracking, setGazeTracking] = useState<boolean>(
+        () => readBooleanSetting(APP_SETTING_KEYS.gazeTracking, true),
+    );
+    useEffect(() => {
+        const sync = () => setGazeTracking(readBooleanSetting(APP_SETTING_KEYS.gazeTracking, true));
+        window.addEventListener("storage", sync);
+        window.addEventListener("focus", sync);
+        // WebView2 fires `storage` across same-origin windows, but not for a same-document write,
+        // and this window can be unfocused for a long time: a cheap poll keeps the two in step.
+        const timer = window.setInterval(sync, 1000);
+        return () => {
+            window.removeEventListener("storage", sync);
+            window.removeEventListener("focus", sync);
+            window.clearInterval(timer);
+        };
+    }, []);
 
     const [{ modelUrl, modelPath, modelSource }, setModelSelection] = useState<{
         modelPath: string;
@@ -663,7 +684,7 @@ export default function PetWindow() {
                     modelSource={modelSource}
                     backgroundAlpha={0}
                     displayMode="full"
-                    gazeTracking={true}
+                    gazeTracking={gazeTracking}
                     fixedSize={canvasSize || undefined}
                     scaleMultiplier={scaleMultiplier}
                     maxFps={renderFps}

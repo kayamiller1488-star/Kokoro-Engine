@@ -318,9 +318,18 @@ const Live2DViewer = forwardRef<Live2DViewerHandle, Live2DViewerProps>(
             };
         }, [getActiveController]);
 
-        // Sync gazeTracking prop to ref (avoids recreating handlePointerMove)
+        // Sync gazeTracking prop to ref (avoids recreating handlePointerMove), and clear the focus
+        // when tracking is switched off. pixi-live2d-display keeps steering the eyes and head toward
+        // the last focus every frame until something replaces it, so merely ignoring new pointer
+        // moves would leave her staring at the spot where the cursor last was.
         useEffect(() => {
             gazeTrackingRef.current = gazeTracking;
+            if (gazeTracking) return;
+            const model = modelRef.current;
+            const app = appRef.current;
+            if (!model || !app) return;
+            const { width, height } = app.screen;
+            model.focus(width / 2, height / 2);
         }, [gazeTracking]);
 
         useEffect(() => {
