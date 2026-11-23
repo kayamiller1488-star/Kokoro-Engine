@@ -20,6 +20,7 @@ import {
 } from "../../../lib/kokoro-bridge";
 import type { Live2dCueBinding, Live2dModelInfo, Live2dModelProfile } from "../../../lib/kokoro-bridge";
 import type { Live2DDisplayMode } from "../../../features/live2d/Live2DViewer";
+import { MagicAnimationCard } from "./MagicAnimationCard";
 
 const INTERACTION_GESTURES = [
     { value: "tap" },
@@ -513,6 +514,8 @@ export default function ModelTab({
             </div>
 
             {/* Model List Section */}
+            <MagicAnimationCard />
+
             <div>
                 <div className="flex items-center justify-between mb-2">
                     <label className={labelClasses}>{t("settings.model.list.label")}</label>
