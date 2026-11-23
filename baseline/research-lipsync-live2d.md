@@ -4,8 +4,19 @@ Prepared 2026-11-22 night for work on 2026-11-23. Nothing changed in the running
 
 ## Headline: lip sync already exists in this app, and it is already wired
 
+**Verified statically and at runtime on 2026-11-23, with the app running.**
+
+> **Short answer to "does it really have lip sync built in": yes — the code is complete and correct,
+> and in the current configuration it does nothing, because the mouth it drives never receives audio.**
+> The app's own TTS playback is disabled (`kokoro_tts_enabled = "false"`); her voice is played by the
+> **va-voice-aec mod** inside its iframe, so the app's analyser — the only source the lip-sync
+> processor listens to — never runs.
+
+Static path (every link present):
+
 `src/features/live2d/LipSyncProcessor.ts` (118 lines) turns audio analysis into two parameters, and
 `Live2DController.ts` drives them every frame:
+
 
 ```
 audio-player.ts  (Web Audio AnalyserNode, has addAmplitudeListener)
@@ -22,13 +33,54 @@ high = wider) — an approximation, not a viseme.
 
 So "add lip sync" is not the task. The tasks are **verify, de-conflict, and improve quality.**
 
+### Runtime measurement (2026-11-23, app launched from `build-aec`)
+
+With the relay on :8092 up so she actually answered, I instrumented the live webviews over CDP and
+drove real replies two ways.
+
+| probe | main window (app) | mod iframe (va-voice-aec) |
+|---|---|---|
+| `new AudioContext` created | **0** | (pre-existing, used for the AEC graph) |
+| `AudioBufferSourceNode.start()` | **0** | **3** — her three sentence chunks played here |
+| `HTMLMediaElement.play()` | 0 | 0 |
+| `AnalyserNode.getByteTimeDomainData` | **0** | 0 |
+| `<audio>` elements in DOM | 0 | 0 |
+
+TTS itself worked the whole time (`mouth.log`: `sasha cmn 21 chars -> 169.0 kB in 2320 ms` …), so the
+audio was synthesised, and the **mod** played it. The app's `audioPlayer` — the object that owns the
+`AnalyserNode` feeding `LipSyncProcessor` — never ran.
+
+Pixel check confirms the consequence. Comparing consecutive screenshots of a tight mouth box while she
+was replying versus idle:
+
+| window | mouth-box frame diff (mean / max) | forehead control |
+|---|---|---|
+| idle | 23.4 / 34.4 | 16.9 |
+| during her replies | 9.7 / 24.9 | 22.4 |
+
+The mouth moves *less* during speech than at idle, i.e. there is no lip motion at all — the small
+differences are whole-head idle sway (the forehead control shows it).
+
+**Root cause, in one line:** `tts/manager.rs` emits `tts:audio` to the app window, but the app's TTS
+playback is switched off (`localStorage.kokoro_tts_enabled = "false"`), so the app plays nothing; the
+mod synthesises and plays her voice itself. Lip sync is wired to a player that is not the one making
+sound.
+
+**The fix is small and the seam already exists.** `Live2DViewer` exposes `setMouthOpen(val)` →
+`getLipSync().updateAudio(val)` (commented "Hacky adapter", currently called by nobody). The mod
+already knows when she is speaking (`__vaVoice.playbackStartedAt`, `speaking`) and can publish a level
+the same way it publishes `heard` — one bridge call per frame closes the loop. The alternative,
+re-enabling the app's own TTS, would move playback out of the AEC graph and break echo cancellation.
+
 ### Three concrete findings to act on
 
-1. **There may be two drivers fighting.** `Live2DViewer.tsx:212-214` carries the comment
-   *"This might conflict with the LipSyncProcessor in the controller"* immediately above
-   `ctrl?.getLipSync().updateAudio(val); // Hacky adapter`. Two callers feeding one processor means
-   amplitude is updated twice per frame with different sources. Measure first: log both drivers for
-   one sentence and see whether the second path is live.
+
+1. **The "second driver" is dormant, not a conflict** (corrected after measurement: nothing calls
+   `setMouthOpen`, so it is unreachable dead code). `Live2DViewer.tsx:210-215` exposes
+   `setMouthOpen(val)` → `getLipSync().updateAudio(val)` with the comment *"This might conflict with
+   the LipSyncProcessor in the controller"* immediately above it, and **no caller exists** — which is
+   exactly why it makes the right seam for the fix below: the plumbing to push an external level into
+   the mouth is already written and merely unused.
 2. **No runtime tuning.** The config is hard-coded at construction; nothing in settings or
    `app-settings.ts` exposes gain/threshold. Cheap win: expose them like `__vaVoice.guardMs` so the
    mouth can be tuned without a rebuild.
